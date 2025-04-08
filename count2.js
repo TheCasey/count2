@@ -69,12 +69,12 @@ javascript:(function(){
     let m = parseInt(minVal, 10);
     if(ampm === "PM" && h < 12) h += 12;
     if(ampm === "AM" && h === 12) h = 0;
-    // Build an ISO-like datetime string with ET fixed offset (-04:00)
+    // Create an ISO–like string with fixed offset for Eastern Time (-04:00)
     let dtStr = dateVal + "T" + ("0"+h).slice(-2) + ":" + ("0"+m).slice(-2) + ":00-04:00";
     return new Date(dtStr).getTime();
   }
 
-  // ---------- FETCH UTTERANCES FROM API ----------
+  // ---------- FETCH UTTERANCES FROM ALEXA HISTORY API ----------
   async function fetchUtterances(){
     if(!capturedFetch){
       alert("No fetch captured yet. Try opening Alexa history first.");
@@ -172,6 +172,7 @@ javascript:(function(){
 
   // ---------- OPEN FILTERED, SEARCHABLE PAGE WITH TWO PANELS ----------
   function openFilteredPage(){
+    // Open a new window and inject the UI, including our records data
     let win = window.open();
     let html = `<!DOCTYPE html>
 <html>
@@ -212,12 +213,7 @@ javascript:(function(){
     </div>
   </div>
   <script>
-    // ---- Helper function for regex escaping ----
-    function escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-    }
-    
-    // ---- Embedded data from parent ----
+    // Embed the records and word groups from the parent
     let records = ${JSON.stringify(records)};
     const wakeWords = ${JSON.stringify(wakeWords)};
     const subtractions = ${JSON.stringify(subtractions)};
@@ -238,7 +234,7 @@ javascript:(function(){
       return transcript;
     }
     
-    // ---- Process records for summary ----
+    // Process records (filtered by device if specified) and aggregate summary info
     function processRecordsForUI(recordsArray) {
       let data = {};
       let dateData = {};
@@ -260,13 +256,13 @@ javascript:(function(){
         let lowerTranscript = transcript.toLowerCase();
         groups["Wake Word Usage"].forEach(term => {
           let lowerTerm = term.toLowerCase();
-          let regex = new RegExp(escapeRegExp(lowerTerm), "g");
+          let regex = new RegExp(lowerTerm.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "g");
           let count = (lowerTranscript.match(regex) || []).length;
           data[device][term] += count;
         });
         groups["Subtractions"].forEach(term => {
           let lowerTerm = term.toLowerCase();
-          let regex = new RegExp(escapeRegExp(lowerTerm), "g");
+          let regex = new RegExp(lowerTerm.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "g");
           let count = (lowerTranscript.match(regex) || []).length;
           data[device][term] += count;
         });
@@ -274,7 +270,7 @@ javascript:(function(){
       return { data, dateData, firstValid, lastValid };
     }
     
-    // ---- Render Summary in Left Panel ----
+    // Render summary (left panel) based on filtered records
     function renderSummary(filterDevice) {
       let filtered = records.filter(record => {
         let dev = (record.device && record.device.deviceName) || "Unknown";
@@ -335,7 +331,7 @@ javascript:(function(){
       leftPanel.innerHTML = html;
     }
     
-    // ---- Render Utterance Table in Right Panel ----
+    // Render utterance table (right panel) based on filter
     function renderUtterances(filterDevice) {
       let tbody = document.getElementById("utteranceTable").getElementsByTagName("tbody")[0];
       tbody.innerHTML = "";
@@ -353,14 +349,14 @@ javascript:(function(){
         if(words.length === 1) flags.push("Single Word");
         let wakeCount = 0;
         wakeWords.forEach(term => {
-          let regex = new RegExp(escapeRegExp(term.toLowerCase()), "gi");
-          wakeCount += (utterance.toLowerCase().match(regex) || []).length;
+          let regex = new RegExp(term.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "gi");
+          wakeCount += (utterance.match(regex) || []).length;
         });
         if(wakeCount > 0) flags.push("Wake Word");
         let subCount = 0;
         subtractions.forEach(term => {
-          let regex = new RegExp(escapeRegExp(term.toLowerCase()), "gi");
-          subCount += (utterance.toLowerCase().match(regex) || []).length;
+          let regex = new RegExp(term.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "gi");
+          subCount += (utterance.match(regex) || []).length;
         });
         if(subCount > 0) flags.push("Subtraction");
         let tr = document.createElement("tr");
@@ -400,7 +396,7 @@ javascript:(function(){
     
     populateDeviceFilter();
     renderPage("All Devices");
-  <\/script>
+  </script>
 </body>
 </html>`;
     win.document.write(html);
