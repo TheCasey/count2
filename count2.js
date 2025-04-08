@@ -400,6 +400,7 @@ javascript:(function(){
     
     populateDeviceFilter();
     renderPage("All Devices");
+// ← Close openFilteredPage function
   <\/script>
 </body>
 </html>`;
