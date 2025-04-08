@@ -214,7 +214,7 @@ javascript:(function(){
   <script>
     // ---- Helper function for regex escaping ----
     function escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+      return string.replace(/[.*+?^$\{}()|[\\]\\\\]/g, '\\\\$&');
     }
     
     // ---- Embedded data from parent ----
@@ -400,11 +400,10 @@ javascript:(function(){
     
     populateDeviceFilter();
     renderPage("All Devices");
-// ← Close openFilteredPage function
-  <\/script>
+  </script>
 </body>
 </html>`;
     win.document.write(html);
     win.document.close();
-  }
+}
 })();
