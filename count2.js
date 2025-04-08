@@ -120,37 +120,37 @@ javascript:(function(){
 
   // ---------- WORD GROUPS FOR LOGIC ----------
   const wakeWords = [
-    "alexa",
-    "hey alexa",
-    "echo",
-    "hey echo",
-    "ziggy",
-    "hey ziggy",
-    "computer",
-    "hey computer"
+    "\"alexa",
+    "\"hey alexa",
+    "\"echo",
+    "\"hey echo",
+    "\"ziggy",
+    "\"hey ziggy",
+    "\"computer",
+    "\"hey computer"
   ];
   const subtractions = [
-    "alexa",
-    "hey alexa",
-    "echo",
-    "hey echo",
-    "ziggy",
-    "hey ziggy",
-    "computer",
-    "hey computer",
-    "yes",
-    "no",
+    "\"alexa\"",
+    "\"hey alexa\"",
+    "\"echo\"",
+    "\"hey echo\"",
+    "\"ziggy\"",
+    "\"hey ziggy\"",
+    "\"computer\"",
+    "\"hey computer\"",
+    "\"yes\"",
+    "\"no\"",
     "no text stored",
     "tap /",
     "audio was",
     "audio could",
-    "stop",
-    "yeah",
-    "okay",
-    "alexa stop",
-    "echo stop",
-    "ziggy stop",
-    "computer stop"
+    "\"stop\"",
+    "\"yeah\"",
+    "\"okay\"",
+    "\"alexa stop\"",
+    "\"echo stop\"",
+    "\"ziggy stop\"",
+    "\"computer stop\""
   ];
   const groups = {
     "Wake Word Usage": wakeWords,
@@ -214,7 +214,7 @@ javascript:(function(){
   <script>
     // ---- Helper function for regex escaping ----
     function escapeRegExp(string) {
-      return string.replace(/[.*+?^$\{}()|[\\]\\\\]/g, '\\\\$&');
+      return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
     }
     
     // ---- Embedded data from parent ----
@@ -400,10 +400,10 @@ javascript:(function(){
     
     populateDeviceFilter();
     renderPage("All Devices");
-  </script>
+  <\/script>
 </body>
 </html>`;
     win.document.write(html);
     win.document.close();
-}
+  }
 })();
