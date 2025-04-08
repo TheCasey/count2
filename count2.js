@@ -1,11 +1,11 @@
 javascript:(function(){
-  // ----------------- CAPTURE FETCH & XHR CALLS -----------------
+  // ---------- CAPTURE FETCH & XHR REQUESTS ----------
   let capturedFetch = null;
   let records = [];
   function logMsg(msg){
     document.getElementById("fetchLog").innerText = msg;
   }
-  // Intercept fetch calls.
+  // Intercept window.fetch calls.
   const originalFetch = window.fetch;
   window.fetch = async function(...args){
     let [url, options] = args;
@@ -38,7 +38,7 @@ javascript:(function(){
     return origSend.apply(this, arguments);
   };
 
-  // ----------------- CREATE THE FETCH UI PANEL -----------------
+  // ---------- CREATE FETCH UI PANEL ----------
   (function createUIPanel(){
     let panel = document.createElement("div");
     panel.style = "position:fixed;top:10px;left:10px;z-index:99999;background:#fff;padding:12px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.4);font-family:sans-serif;width:330px;font-size:14px;";
@@ -63,18 +63,18 @@ javascript:(function(){
     document.getElementById("htmlBtn").onclick = openFilteredPage;
   })();
 
-  // ----------------- TIME RANGE HELPER FUNCTION -----------------
+  // ---------- TIME RANGE HELPER FUNCTION ----------
   function getTimestamp(dateVal, hourVal, minVal, ampm){
     let h = parseInt(hourVal, 10);
     let m = parseInt(minVal, 10);
     if(ampm === "PM" && h < 12) h += 12;
     if(ampm === "AM" && h === 12) h = 0;
-    // Build an ISO-like datetime string with ET fixed offset (-04:00)
+    // Create an ISO–like string with fixed offset for Eastern Time (-04:00)
     let dtStr = dateVal + "T" + ("0"+h).slice(-2) + ":" + ("0"+m).slice(-2) + ":00-04:00";
     return new Date(dtStr).getTime();
   }
 
-  // ----------------- FETCH UTTERANCES FROM API -----------------
+  // ---------- FETCH UTTERANCES FROM ALEXA HISTORY API ----------
   async function fetchUtterances(){
     if(!capturedFetch){
       alert("No fetch captured yet. Try opening Alexa history first.");
@@ -118,7 +118,7 @@ javascript:(function(){
     document.getElementById("htmlBtn").disabled = false;
   }
 
-  // ----------------- WORD GROUPS -----------------
+  // ---------- WORD GROUPS FOR LOGIC ----------
   const wakeWords = [
     "\"alexa",
     "\"hey alexa",
@@ -152,8 +152,12 @@ javascript:(function(){
     "\"ziggy stop\"",
     "\"computer stop\""
   ];
+  const groups = {
+    "Wake Word Usage": wakeWords,
+    "Subtractions": subtractions
+  };
 
-  // ----------------- HELPER: EXTRACT TRANSCRIPT FROM A RECORD -----------------
+  // ---------- HELPER: EXTRACT TRANSCRIPT FROM A RECORD ----------
   function extractTranscript(record){
     let transcript = "";
     let items = record.voiceHistoryRecordItems || [];
@@ -166,169 +170,235 @@ javascript:(function(){
     return transcript;
   }
 
-  // ----------------- PROCESS RECORDS TO AGGREGATE SUMMARY DATA -----------------
-  function processRecords(records){
-    let summary = {
-      firstValid: null,
-      lastValid: null,
-      dailyUsage: {},
-      deviceOverview: {},
-      wakeWordCounts: {},
-      subtractionCounts: {}
-    };
-    // Initialize counts
-    wakeWords.forEach(term => { summary.wakeWordCounts[term] = 0; });
-    subtractions.forEach(term => { summary.subtractionCounts[term] = 0; });
-    
-    records.forEach(record => {
-      let ts = record.timestamp;
-      let dateObj = new Date(ts);
-      // Convert to ET for display and daily grouping.
-      let localStr = dateObj.toLocaleString("en-US", {timeZone:"America/New_York"});
-      let dateKey = new Date(ts).toLocaleDateString("en-US", {timeZone:"America/New_York"});
-      summary.dailyUsage[dateKey] = (summary.dailyUsage[dateKey] || 0) + 1;
-      if(summary.firstValid === null || ts < summary.firstValid) summary.firstValid = ts;
-      if(summary.lastValid === null || ts > summary.lastValid) summary.lastValid = ts;
-      
-      // Device overview.
-      let device = (record.device && record.device.deviceName) || "Unknown";
-      summary.deviceOverview[device] = (summary.deviceOverview[device] || 0) + 1;
-      
-      // Count wake words & subtractions in the transcript.
-      let text = extractTranscript(record).trim();
-      wakeWords.forEach(term => {
-        let regex = new RegExp(term.replace(/[\^$*+?.()|[\]{}\\]/g, "\\$&"), "gi");
-        summary.wakeWordCounts[term] += (text.match(regex) || []).length;
-      });
-      subtractions.forEach(term => {
-        let regex = new RegExp(term.replace(/[\^$*+?.()|[\]{}\\]/g, "\\$&"), "gi");
-        summary.subtractionCounts[term] += (text.match(regex) || []).length;
-      });
-    });
-    return summary;
-  }
-
-  // ----------------- OPEN THE FILTERED, SEARCHABLE PAGE -----------------
+  // ---------- OPEN FILTERED, SEARCHABLE PAGE WITH TWO PANELS ----------
   function openFilteredPage(){
-    let summary = processRecords(records);
-    let html = `
-      <html>
-      <head>
-        <title>Alexa Utterance Report</title>
-        <style>
-          body { font-family: sans-serif; margin: 0; padding: 0; }
-          #container { display: flex; height: 100vh; }
-          #summaryPanel { width: 40%; overflow: auto; padding: 10px; border-right: 1px solid #ccc; }
-          #utterancePanel { width: 60%; overflow: auto; padding: 10px; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #ccc; padding: 4px; }
-          th { background: #eee; }
-          input[type="text"] { width: 100%; padding: 6px; margin-bottom: 10px; }
-        </style>
-      </head>
-      <body>
-        <div id="container">
-          <div id="summaryPanel">
-            <h2>Summary</h2>
-            <p><strong>First Valid:</strong> ${summary.firstValid ? new Date(summary.firstValid).toLocaleString("en-US", {timeZone:"America/New_York"}) : "N/A"}<br>
-            <strong>Last Valid:</strong> ${summary.lastValid ? new Date(summary.lastValid).toLocaleString("en-US", {timeZone:"America/New_York"}) : "N/A"}</p>
-            <h3>Daily Usage</h3>
-            <ul>
-    `;
-    for(const d in summary.dailyUsage){
-      html += `<li>${d}: ${summary.dailyUsage[d]}</li>`;
-    }
-    html += `
-            </ul>
-            <h3>Device Overview</h3>
-            <ul>
-    `;
-    for(const dev in summary.deviceOverview){
-      html += `<li>${dev}: ${summary.deviceOverview[dev]}</li>`;
-    }
-    html += `
-            </ul>
-            <h3>Wake Word Usage</h3>
-            <ul>
-    `;
-    for(const term in summary.wakeWordCounts){
-      html += `<li>${term}: ${summary.wakeWordCounts[term]}</li>`;
-    }
-    html += `
-            </ul>
-            <h3>Subtractions</h3>
-            <ul>
-    `;
-    for(const term in summary.subtractionCounts){
-      html += `<li>${term}: ${summary.subtractionCounts[term]}</li>`;
-    }
-    html += `
-            </ul>
-          </div>
-          <div id="utterancePanel">
-            <h2>Utterances</h2>
-            <input type="text" id="searchInput" placeholder="Search utterances..." onkeyup="filterTable()">
-            <table id="utteranceTable">
-              <thead>
-                <tr>
-                  <th>Timestamp (ET)</th>
-                  <th>Device</th>
-                  <th>Utterance</th>
-                  <th>Flags</th>
-                </tr>
-              </thead>
-              <tbody>
-    `;
-    records.forEach(record => {
-      let ts = record.timestamp;
-      let localTs = new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
-      let device = (record.device && record.device.deviceName) || "Unknown";
-      let utterance = extractTranscript(record);
-      let words = utterance.split(/\s+/).filter(w => w.length);
-      let flags = [];
-      if(words.length === 1) flags.push("Single Word");
-      let wakeCount = 0;
-      wakeWords.forEach(term => {
-        let regex = new RegExp(term.replace(/[\^$*+?.()|[\]{}\\]/g, "\\$&"), "gi");
-        wakeCount += (utterance.match(regex) || []).length;
-      });
-      if(wakeCount > 0) flags.push("Wake Word");
-      let subCount = 0;
-      subtractions.forEach(term => {
-        let regex = new RegExp(term.replace(/[\^$*+?.()|[\]{}\\]/g, "\\$&"), "gi");
-        subCount += (utterance.match(regex) || []).length;
-      });
-      if(subCount > 0) flags.push("Subtraction");
-      html += `
-                <tr>
-                  <td>${localTs}</td>
-                  <td>${device}</td>
-                  <td>${utterance}</td>
-                  <td>${flags.join(", ")}</td>
-                </tr>
-      `;
-    });
-    html += `
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <script>
-          function filterTable(){
-            var input = document.getElementById("searchInput");
-            var filter = input.value.toLowerCase();
-            var table = document.getElementById("utteranceTable");
-            var trs = table.getElementsByTagName("tr");
-            for (var i = 1; i < trs.length; i++){
-              var rowText = trs[i].innerText.toLowerCase();
-              trs[i].style.display = rowText.indexOf(filter) > -1 ? "" : "none";
-            }
-          }
-        </script>
-      </body>
-      </html>
-    `;
+    // Open a new window and inject the UI, including our records data
     let win = window.open();
+    let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Alexa Utterance Report</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; }
+    #deviceFilter { width: 100%; padding: 6px; margin-bottom: 10px; }
+    #container { display: flex; height: 100vh; }
+    #leftPanel { width: 40%; overflow: auto; padding: 10px; border-right: 1px solid #ccc; }
+    #rightPanel { width: 60%; overflow: auto; padding: 10px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 4px; }
+    th { background: #eee; }
+    input[type="text"] { width: 100%; padding: 6px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <select id="deviceFilter"></select>
+  <div id="container">
+    <div id="leftPanel">
+      <!-- Summary will be rendered here -->
+    </div>
+    <div id="rightPanel">
+      <input type="text" id="searchInput" placeholder="Search utterances..." onkeyup="filterTable()">
+      <table id="utteranceTable">
+        <thead>
+          <tr>
+            <th>Timestamp (ET)</th>
+            <th>Device</th>
+            <th>Utterance</th>
+            <th>Flags</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    // Embed the records and word groups from the parent
+    let records = ${JSON.stringify(records)};
+    const wakeWords = ${JSON.stringify(wakeWords)};
+    const subtractions = ${JSON.stringify(subtractions)};
+    const groups = {
+      "Wake Word Usage": wakeWords,
+      "Subtractions": subtractions
+    };
+    
+    function extractTranscript(record){
+      let transcript = "";
+      let items = record.voiceHistoryRecordItems || [];
+      for(let item of items){
+        if(["CUSTOMER_TRANSCRIPT","ASR_REPLACEMENT_TEXT","ASR_EXPECTED_TEXT"].includes(item.recordItemType)){
+          transcript = item.transcriptText || transcript;
+          if(transcript) break;
+        }
+      }
+      return transcript;
+    }
+    
+    // Process records (filtered by device if specified) and aggregate summary info
+    function processRecordsForUI(recordsArray) {
+      let data = {};
+      let dateData = {};
+      let firstValid = null, lastValid = null;
+      recordsArray.forEach(record => {
+        let ts = record.timestamp;
+        let device = (record.device && record.device.deviceName) || "Unknown";
+        if(!data[device]){
+          data[device] = { _utteranceCount: 0 };
+          groups["Wake Word Usage"].forEach(term => { data[device][term] = 0; });
+          groups["Subtractions"].forEach(term => { data[device][term] = 0; });
+        }
+        data[device]._utteranceCount++;
+        if(firstValid === null || ts < firstValid) firstValid = ts;
+        if(lastValid === null || ts > lastValid) lastValid = ts;
+        let dateKey = new Date(ts).toLocaleDateString("en-US", { timeZone:"America/New_York" });
+        dateData[dateKey] = (dateData[dateKey] || 0) + 1;
+        let transcript = extractTranscript(record).trim();
+        let lowerTranscript = transcript.toLowerCase();
+        groups["Wake Word Usage"].forEach(term => {
+          let lowerTerm = term.toLowerCase();
+          let regex = new RegExp(lowerTerm.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "g");
+          let count = (lowerTranscript.match(regex) || []).length;
+          data[device][term] += count;
+        });
+        groups["Subtractions"].forEach(term => {
+          let lowerTerm = term.toLowerCase();
+          let regex = new RegExp(lowerTerm.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "g");
+          let count = (lowerTranscript.match(regex) || []).length;
+          data[device][term] += count;
+        });
+      });
+      return { data, dateData, firstValid, lastValid };
+    }
+    
+    // Render summary (left panel) based on filtered records
+    function renderSummary(filterDevice) {
+      let filtered = records.filter(record => {
+        let dev = (record.device && record.device.deviceName) || "Unknown";
+        return filterDevice === "All Devices" || dev === filterDevice;
+      });
+      let summary = processRecordsForUI(filtered);
+      let leftPanel = document.getElementById("leftPanel");
+      let html = "";
+      html += "<h2>Summary</h2>";
+      html += "<p><strong>First Valid:</strong> " + (summary.firstValid ? new Date(summary.firstValid).toLocaleString("en-US",{timeZone:"America/New_York"}) : "N/A") + "<br>";
+      html += "<strong>Last Valid:</strong> " + (summary.lastValid ? new Date(summary.lastValid).toLocaleString("en-US",{timeZone:"America/New_York"}) : "N/A") + "</p>";
+      html += "<h3>Daily Usage</h3><ul>";
+      for(let d in summary.dateData) {
+        html += "<li>" + d + ": " + summary.dateData[d] + "</li>";
+      }
+      html += "</ul>";
+      html += "<h3>Device Overview</h3><ul>";
+      for(let dev in summary.data) {
+        html += "<li>" + dev + ": " + summary.data[dev]._utteranceCount + "</li>";
+      }
+      html += "</ul>";
+      html += "<h3>Wake Word Usage</h3><ul>";
+      let totalWake = {};
+      groups["Wake Word Usage"].forEach(term => { totalWake[term] = 0; });
+      if(filterDevice === "All Devices"){
+        for(let dev in summary.data){
+          groups["Wake Word Usage"].forEach(term => {
+            totalWake[term] += (summary.data[dev][term] || 0);
+          });
+        }
+      } else {
+        groups["Wake Word Usage"].forEach(term => {
+          totalWake[term] = summary.data[filterDevice] ? summary.data[filterDevice][term] : 0;
+        });
+      }
+      groups["Wake Word Usage"].forEach(term => {
+        html += "<li>" + term + ": " + totalWake[term] + "</li>";
+      });
+      html += "</ul>";
+      html += "<h3>Subtractions</h3><ul>";
+      let totalSub = {};
+      groups["Subtractions"].forEach(term => { totalSub[term] = 0; });
+      if(filterDevice === "All Devices"){
+        for(let dev in summary.data){
+          groups["Subtractions"].forEach(term => {
+            totalSub[term] += (summary.data[dev][term] || 0);
+          });
+        }
+      } else {
+        groups["Subtractions"].forEach(term => {
+          totalSub[term] = summary.data[filterDevice] ? summary.data[filterDevice][term] : 0;
+        });
+      }
+      groups["Subtractions"].forEach(term => {
+        html += "<li>" + term + ": " + totalSub[term] + "</li>";
+      });
+      html += "</ul>";
+      leftPanel.innerHTML = html;
+    }
+    
+    // Render utterance table (right panel) based on filter
+    function renderUtterances(filterDevice) {
+      let tbody = document.getElementById("utteranceTable").getElementsByTagName("tbody")[0];
+      tbody.innerHTML = "";
+      let filtered = records.filter(record => {
+        let dev = (record.device && record.device.deviceName) || "Unknown";
+        return filterDevice === "All Devices" || dev === filterDevice;
+      });
+      filtered.forEach(record => {
+        let ts = record.timestamp;
+        let localTs = new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
+        let device = (record.device && record.device.deviceName) || "Unknown";
+        let utterance = extractTranscript(record);
+        let words = utterance.split(/\\s+/).filter(w => w.length);
+        let flags = [];
+        if(words.length === 1) flags.push("Single Word");
+        let wakeCount = 0;
+        wakeWords.forEach(term => {
+          let regex = new RegExp(term.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "gi");
+          wakeCount += (utterance.match(regex) || []).length;
+        });
+        if(wakeCount > 0) flags.push("Wake Word");
+        let subCount = 0;
+        subtractions.forEach(term => {
+          let regex = new RegExp(term.replace(/[\\^$*+?.()|[\\]{}]/g, "\\\\$&"), "gi");
+          subCount += (utterance.match(regex) || []).length;
+        });
+        if(subCount > 0) flags.push("Subtraction");
+        let tr = document.createElement("tr");
+        tr.innerHTML = "<td>" + localTs + "</td><td>" + device + "</td><td>" + utterance + "</td><td>" + flags.join(", ") + "</td>";
+        tbody.appendChild(tr);
+      });
+    }
+    
+    function renderPage(filterDevice) {
+      renderSummary(filterDevice);
+      renderUtterances(filterDevice);
+    }
+    
+    function populateDeviceFilter() {
+      let deviceSet = new Set();
+      records.forEach(record => {
+        let dev = (record.device && record.device.deviceName) || "Unknown";
+        deviceSet.add(dev);
+      });
+      let select = document.getElementById("deviceFilter");
+      select.innerHTML = "<option>All Devices</option>" + Array.from(deviceSet).map(d => "<option>" + d + "</option>").join("");
+      select.onchange = function(){
+        renderPage(this.value);
+      };
+    }
+    
+    function filterTable(){
+      var input = document.getElementById("searchInput");
+      var filter = input.value.toLowerCase();
+      var table = document.getElementById("utteranceTable");
+      var trs = table.getElementsByTagName("tr");
+      for (var i = 1; i < trs.length; i++){
+        var rowText = trs[i].innerText.toLowerCase();
+        trs[i].style.display = rowText.indexOf(filter) > -1 ? "" : "none";
+      }
+    }
+    
+    populateDeviceFilter();
+    renderPage("All Devices");
+  </script>
+</body>
+</html>`;
     win.document.write(html);
     win.document.close();
   }
