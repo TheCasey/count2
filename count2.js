@@ -120,37 +120,37 @@ javascript:(function(){
 
   // ---------- WORD GROUPS FOR LOGIC ----------
   const wakeWords = [
-    "\"alexa",
-    "\"hey alexa",
-    "\"echo",
-    "\"hey echo",
-    "\"ziggy",
-    "\"hey ziggy",
-    "\"computer",
-    "\"hey computer"
+    "alexa",
+    "hey alexa",
+    "echo",
+    "hey echo",
+    "ziggy",
+    "hey ziggy",
+    "computer",
+    "hey computer"
   ];
   const subtractions = [
-    "\"alexa\"",
-    "\"hey alexa\"",
-    "\"echo\"",
-    "\"hey echo\"",
-    "\"ziggy\"",
-    "\"hey ziggy\"",
-    "\"computer\"",
-    "\"hey computer\"",
-    "\"yes\"",
-    "\"no\"",
+    "alexa",
+    "hey alexa",
+    "echo",
+    "hey echo",
+    "ziggy",
+    "hey ziggy",
+    "computer",
+    "hey computer",
+    "yes",
+    "no",
     "no text stored",
     "tap /",
     "audio was",
     "audio could",
-    "\"stop\"",
-    "\"yeah\"",
-    "\"okay\"",
-    "\"alexa stop\"",
-    "\"echo stop\"",
-    "\"ziggy stop\"",
-    "\"computer stop\""
+    "stop",
+    "yeah",
+    "okay",
+    "alexa stop",
+    "echo stop",
+    "ziggy stop",
+    "computer stop"
   ];
   const groups = {
     "Wake Word Usage": wakeWords,
