@@ -39,7 +39,7 @@ javascript:(function(){
   };
   
   // ────────────────────────────────────────────── 
-  // FETCH UI PANEL (unchanged base UI for date selection)
+  // FETCH UI PANEL (base UI for date selection)
   // ────────────────────────────────────────────── 
   (function createUIPanel(){
     let panel = document.createElement("div");
@@ -121,7 +121,7 @@ javascript:(function(){
   // UTTERANCE PROCESSING & UI RENDERING
   // ────────────────────────────────────────────── 
   function openFilteredPage(){
-    // Open a new window with two panels
+    // Open new window with two panels
     let win = window.open("", "_blank");
     win.document.write(`<!DOCTYPE html>
 <html>
@@ -156,7 +156,7 @@ javascript:(function(){
       <table>
         <thead>
           <tr>
-            <th>Flags</th>
+            <th>Toggle/Flags</th>
             <th>Time (ET)</th>
             <th>Device</th>
             <th>Type</th>
@@ -169,41 +169,48 @@ javascript:(function(){
   </body>
 </html>`);
     win.document.close();
-
-    // Utilities for time formatting
+    
+    // Utility: convert timestamp to ET.
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone: "America/New_York" });
-
-    // Global (per–window) device settings. Keyed by device name.
+    
+    // Global device settings per window (by device name).
     let deviceSettings = {};
-    // In this example, we initialize device settings on first pass.
-    // Also, override flags per record (each record gets an _overrides object)
-    // and we’ll attach a computed property _activeFlags.
-    records.forEach((r) => {
-      // Ensure each record gets an override container.
-      r._overrides = { WW: false, "1W": false, SR: false, DUP: false };
-    });
-
-    // Define the supported wake words (order matters: multi-word first)
+    // Set up override container for each record.
+    records.forEach((r) => { r._overrides = { WW: false, "1W": false, SR: false, DUP: false }; });
+    
+    // Supported wake words (order matters: multi-word first)
     const wakeWords = ["hey alexa", "ok alexa", "alexa", "echo", "computer", "amazon"];
     
-    // Re-compute flags for all records based on current device settings and overrides.
+    // Process flags for each record using current device settings and any manual overrides.
     function processRecordFlags(){
-      let deviceLastTranscript = {}; // For duplicate detection
+      let deviceLastTranscript = {}; // for duplicate detection
       records.forEach(r => {
-        // Default empty activeFlags array
-        r._activeFlags = [];
-        // Grab transcript from the first customer transcript item
-        let txt = "";
+        r._activeFlags = []; // reset active flags
+        
+        // Extract transcript. Now we include additional keys.
+        let transcript = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
-          for(let item of r.voiceHistoryRecordItems){
-            if(item.recordItemType === 'CUSTOMER_TRANSCRIPT' && item.transcriptText?.trim()){
-              txt = item.transcriptText.trim();
+          // Preferred order: customer-transcript, then data-warning-message, then replacement-text.
+          let preferredTypes = ["customer-transcript", "data-warning-message", "replacement-text"];
+          for (let pref of preferredTypes) {
+            let found = r.voiceHistoryRecordItems.find(item => {
+              return item.recordItemType && item.recordItemType.toLowerCase() === pref && item.transcriptText && item.transcriptText.trim();
+            });
+            if(found){
+              transcript = found.transcriptText.trim();
               break;
             }
           }
+          // Fallback: any transcript that isn’t an Alexa response.
+          if(!transcript){
+            let found = r.voiceHistoryRecordItems.find(item => {
+              return item.recordItemType && item.recordItemType.toLowerCase() !== "alexa_response" && item.transcriptText && item.transcriptText.trim();
+            });
+            if(found) transcript = found.transcriptText.trim();
+          }
         }
-        r._transcript = txt;
-        let lowerTxt = txt.toLowerCase().trim().replace(/^[^a-z0-9]+/, "");  // remove any leading punctuation
+        r._transcript = transcript;
+        let lowerTxt = transcript.toLowerCase().trim().replace(/^[^a-z0-9]+/, "");
         
         // --- Wake Word Detection ---
         let detectedWW = null;
@@ -221,55 +228,44 @@ javascript:(function(){
         }
         
         // --- Short Utterance Detection ---
-        // Tokenize words (a simple split on whitespace)
-        let words = txt.split(/\s+/).filter(w=>w.length);
+        let words = transcript.split(/\s+/).filter(w=>w.length);
         if(words.length <= 2 && !r._overrides["1W"]){
           r._activeFlags.push("1W");
         }
         
         // --- System Replacement ---
-        // Get utteranceType (or use intent if absent)
         let type = r.utteranceType || r.intent || "";
         let isRoutine = type === "ROUTINES_OR_TAP_TO_ALEXA";
-        // Determine if device is text based (if setting exists, else default false)
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
         if(deviceSettings[dev] === undefined) {
-          // Default: assigned=true, textBased=false
           deviceSettings[dev] = { assigned: true, textBased: false };
         }
         if(type !== "GENERAL"){
-          // Exception: if type is ROUTINES_OR_TAP_TO_ALEXA and device is text based, it is valid.
           if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){
             r._activeFlags.push("SR");
           }
         }
         
         // --- Duplicate Detection ---
-        if(deviceLastTranscript[dev] && deviceLastTranscript[dev] === txt && !r._overrides.DUP){
+        if(deviceLastTranscript[dev] && deviceLastTranscript[dev] === transcript && !r._overrides.DUP){
           r._activeFlags.push("DUP");
         } else {
-          deviceLastTranscript[dev] = txt;
+          deviceLastTranscript[dev] = transcript;
         }
       });
     }
     
-    // Render the main table rows and update summary counts.
+    // Render the main table and update summary counts.
     function renderData(){
       processRecordFlags();
-      
-      // Clear current table body.
       let tbody = win.document.getElementById("tableBody");
       tbody.innerHTML = "";
-      // Clear and re-build device filter options (only assigned devices).
       let deviceFilter = win.document.getElementById("deviceFilter");
       deviceFilter.innerHTML = `<option value="">All Devices</option>`;
       
-      // Prepare summary counts.
       let totalUtterances = records.length;
-      let wwCounts = {};  // wake word counts
+      let wwCounts = {};
       let subCounts = { "1W":0, "SR":0, "DUP":0 };
-      
-      // Also build a set of devices (from processed records).
       let deviceSet = new Set();
       let deviceCount = {};
       
@@ -277,35 +273,39 @@ javascript:(function(){
         let time = et(r.timestamp);
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
         deviceSet.add(dev);
-        deviceCount[dev] = (deviceCount[dev]||0) + 1;
-        // Count wake word usage if flagged.
+        deviceCount[dev] = (deviceCount[dev] || 0) + 1;
         if(r._activeFlags.includes("WW")){
           let ww = r._detectedWW;
           wwCounts[ww] = (wwCounts[ww] || 0) + 1;
         }
-        // Count subtraction flags.
         ["1W","SR","DUP"].forEach(flag => {
           if(r._activeFlags.includes(flag)) subCounts[flag]++;
         });
         
-        // Build row.
+        // Build table row.
         let tr = win.document.createElement("tr");
-        // Flags column: join the active flags with commas.
         let flagsText = r._activeFlags.join(", ");
-        tr.innerHTML = `<td>${flagsText}</td>
-          <td>${time}</td>
-          <td>${dev}</td>
-          <td>${r.utteranceType || r.intent || ""}</td>
-          <td>${r._transcript}</td>`;
-        // Add a button to toggle the detailed Alexa response.
-        tr.insertCell(0).innerHTML = `<button class='toggle' data-i='${i}'>▶</button> ${flagsText}`;
+        let toggleCell = tr.insertCell(0);
+        toggleCell.innerHTML = `<button class='toggle' data-i='${i}'>▶</button> ${flagsText}`;
+        let tb = toggleCell.querySelector("button.toggle");
+        tb.addEventListener("click", function(){
+          let target = win.document.getElementById("resp" + i);
+          if(target){
+            target.style.display = (target.style.display === "none" || target.style.display === "") ? "table-row" : "none";
+          }
+        });
+        tr.insertCell(1).innerText = time;
+        tr.insertCell(2).innerText = dev;
+        tr.insertCell(3).innerText = r.utteranceType || r.intent || "";
+        tr.insertCell(4).innerText = r._transcript;
         tbody.appendChild(tr);
+        
         // Expandable row with Alexa Response.
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
           for(let item of r.voiceHistoryRecordItems){
-            if(item.recordItemType === 'ALEXA_RESPONSE' && item.transcriptText?.trim()){
-              response = item.transcriptText;
+            if(item.recordItemType && item.recordItemType.toLowerCase() === "alexa_response" && item.transcriptText && item.transcriptText.trim()){
+              response = item.transcriptText.trim();
               break;
             }
           }
@@ -313,11 +313,11 @@ javascript:(function(){
         let tr2 = win.document.createElement("tr");
         tr2.id = `resp${i}`;
         tr2.style.display = "none";
-        tr2.innerHTML = `<td colspan='6' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
+        tr2.innerHTML = `<td colspan='5' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
         tbody.appendChild(tr2);
       });
       
-      // Build Summary HTML.
+      // Build summary panel.
       let summary = win.document.getElementById("summary");
       let wwTotal = Object.values(wwCounts).reduce((a,b)=>a+b,0);
       let wwPct = totalUtterances ? Math.round(wwTotal/totalUtterances*100) : 0;
@@ -325,17 +325,27 @@ javascript:(function(){
         <p><b>First:</b> ${et(records[0]?.timestamp)}</p>
         <p><b>Last:</b> ${et(records.at(-1)?.timestamp)}</p>
         <h4>Daily Breakdown</h4>
-        <ul>${records.reduce((acc,r)=>{
-              let day = et(r.timestamp).split(",")[0];
-              acc[day] = (acc[day]||0)+1; return acc;
-            },{}) ? Object.entries(records.reduce((acc,r)=>{
-              let day = et(r.timestamp).split(",")[0];
-              acc[day]=(acc[day]||0)+1; return acc;
-            },{})).map(([d,c])=>`<li>${d}: ${c}</li>`).join('') : ""}</ul>
+        <ul>${
+          Object.entries(records.reduce((acc, r)=>{
+            let day = et(r.timestamp).split(",")[0];
+            acc[day] = (acc[day] || 0) + 1;
+            return acc;
+          }, {}))
+          .map(([d,c])=>`<li>${d}: ${c}</li>`)
+          .join('')
+        }</ul>
         <h4>Devices</h4>
-        <ul>${Object.entries(deviceCount).map(([d,c])=>`<li>${d}: ${c}</li>`).join('')}</ul>
+        <ul>${
+          Object.entries(deviceCount)
+          .map(([d,c])=>`<li>${d}: ${c}</li>`)
+          .join('')
+        }</ul>
         <h4>Wake Words</h4>
-        <ul>${Object.entries(wwCounts).map(([w,c])=>`<li>${w}: ${c}</li>`).join('')}</ul>
+        <ul>${
+          Object.entries(wwCounts)
+          .map(([w,c])=>`<li>${w}: ${c}</li>`)
+          .join('')
+        }</ul>
         <p>Total WW: ${wwTotal} (${wwPct}% of utterances)</p>
         <h4>Subtractions</h4>
         <ul>
@@ -344,15 +354,35 @@ javascript:(function(){
           <li>Duplicates: ${subCounts["DUP"]} <span class="viewBtn" data-cat="DUP">(view)</span></li>
         </ul>
       `;
+      // Reattach viewBtn events.
+      win.document.querySelectorAll(".viewBtn").forEach(btn=>{
+        btn.addEventListener("click", function(){
+          let cat = btn.getAttribute("data-cat");
+          openOverrideModal(cat);
+        });
+      });
       
-      // Build device filter options based on assigned devices only.
-      deviceSet.forEach(dev=>{
+      // Build device filter options.
+      deviceSet.forEach(dev => {
         if(deviceSettings[dev]?.assigned){
           let o = win.document.createElement("option");
           o.value = dev; o.textContent = dev;
           deviceFilter.appendChild(o);
         }
       });
+      
+      // Reattach search listener.
+      win.document.getElementById("searchBox").oninput = function(e){
+        let val = e.target.value.toLowerCase();
+        [...win.document.getElementById("tableBody").children].forEach(tr=>{
+          if(tr.id && tr.id.startsWith("resp")) return;
+          tr.style.display = tr.innerText.toLowerCase().includes(val) ? "" : "none";
+          let next = tr.nextElementSibling;
+          if(next && next.id && next.id.startsWith("resp")){
+            next.style.display = "none";
+          }
+        });
+      };
     }
     
     // ────────────────────────────────────────────── 
@@ -369,7 +399,6 @@ javascript:(function(){
           <label><input type="checkbox" class="textChk" data-dev="${dev}" ${settings.textBased ? "checked" : ""}> Text Based Input</label>`;
         deviceListDiv.appendChild(div);
       });
-      // Attach event listeners to checkboxes.
       [...win.document.querySelectorAll(".assignChk")].forEach(chk=>{
         chk.onchange = (e)=>{
           let d = e.target.getAttribute("data-dev");
@@ -390,7 +419,6 @@ javascript:(function(){
     // OVERRIDE MODALS FOR SUBTRACTION FLAGS
     // ────────────────────────────────────────────── 
     function openOverrideModal(category){
-      // category is one of "1W", "SR", "DUP"
       let modalOverlay = win.document.createElement("div");
       modalOverlay.className = "modalOverlay";
       let modal = win.document.createElement("div");
@@ -408,7 +436,6 @@ javascript:(function(){
       modalOverlay.appendChild(modal);
       win.document.body.appendChild(modalOverlay);
       
-      // Populate modal with records that were flagged in this category.
       let modalBody = modal.querySelector("#modalBody");
       records.forEach((r, i)=>{
         if(r._activeFlags.includes(category) || r._overrides[category]){
@@ -421,7 +448,6 @@ javascript:(function(){
         }
       });
       
-      // Attach change event to checkboxes in the modal.
       [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
         chk.onchange = (e)=>{
           let idx = e.target.getAttribute("data-i");
@@ -431,19 +457,16 @@ javascript:(function(){
         };
       });
       
-      // Reset Overrides for this category.
       modal.querySelector("#resetOverrides").onclick = ()=>{
         records.forEach(r=>{
           r._overrides[category] = false;
         });
         renderData();
-        // Refresh modal checkboxes.
         [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
           chk.checked = false;
         });
       };
       
-      // Close modal.
       modal.querySelector(".closeModal").onclick = ()=>{
         win.document.body.removeChild(modalOverlay);
       };
@@ -452,22 +475,20 @@ javascript:(function(){
     // ────────────────────────────────────────────── 
     // EVENT HANDLERS & INITIAL RENDERING
     // ────────────────────────────────────────────── 
-    // Re-render table when search input changes.
-    win.document.getElementById("searchBox").oninput = (e)=>{
+    // Attach initial search listener.
+    win.document.getElementById("searchBox").oninput = function(e){
       let val = e.target.value.toLowerCase();
       [...win.document.getElementById("tableBody").children].forEach(tr=>{
-        // Skip detail rows
         if(tr.id && tr.id.startsWith("resp")) return;
         tr.style.display = tr.innerText.toLowerCase().includes(val) ? "" : "none";
-        // Also hide the next detail row.
         let next = tr.nextElementSibling;
-        if(next && next.id && next.startsWith("resp")){
+        if(next && next.id && next.id.startsWith("resp")){
           next.style.display = "none";
         }
       });
     };
     
-    // Device filter changes.
+    // Device filter listener.
     win.document.getElementById("deviceFilter").onchange = ()=>{
       let filterVal = win.document.getElementById("deviceFilter").value;
       [...win.document.getElementById("tableBody").children].forEach(tr=>{
@@ -475,33 +496,23 @@ javascript:(function(){
         let dev = tr.cells[2].textContent;
         tr.style.display = (!filterVal || dev===filterVal) ? "" : "none";
         let next = tr.nextElementSibling;
-        if(next && next.id && next.startsWith("resp")) next.style.display = "none";
+        if(next && next.id && next.id.startsWith("resp")) next.style.display = "none";
       });
     };
     
-    // Toggle detail row.
-    [...win.document.querySelectorAll(".toggle")].forEach(btn=>{
-      btn.onclick = ()=>{
-        let idx = btn.getAttribute("data-i");
-        let target = win.document.getElementById("resp" + idx);
-        if(target){
-          target.style.display = target.style.display==="none" ? "table-row" : "none";
-        }
-      };
-    });
-    // Expand All
-    win.document.getElementById("expandAll").onclick = ()=>{
-      [...win.document.querySelectorAll("tr[id^='resp']")].forEach(r=>{
-        r.style.display = "table-row";
-      });
+    // Expand/Collapse All toggle.
+    let expandAllBtn = win.document.getElementById("expandAll");
+    expandAllBtn.onclick = ()=>{
+      let rows = win.document.querySelectorAll("tr[id^='resp']");
+      let anyHidden = [...rows].some(r => r.style.display === "none" || r.style.display === "");
+      if(anyHidden){
+        rows.forEach(r=> r.style.display = "table-row");
+        expandAllBtn.textContent = "Collapse All";
+      } else {
+        rows.forEach(r=> r.style.display = "none");
+        expandAllBtn.textContent = "Expand All";
+      }
     };
-    // Attach click event for override modal view buttons.
-    [...win.document.querySelectorAll(".viewBtn")].forEach(btn=>{
-      btn.onclick = ()=>{
-        let cat = btn.getAttribute("data-cat");
-        openOverrideModal(cat);
-      };
-    });
     
     // Initial rendering.
     renderData();
