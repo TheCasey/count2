@@ -491,7 +491,7 @@ javascript:(function(){
     });
     // Expand All
     win.document.getElementById("expandAll").onclick = ()=>{
-      [...win.document.querySelectorAll("tr[id^='resp']")).forEach(r=>{
+      [...win.document.querySelectorAll("tr[id^='resp']")].forEach(r=>{
         r.style.display = "table-row";
       });
     };
