@@ -118,6 +118,45 @@ javascript:(function(){
     document.getElementById("htmlBtn").disabled = false;
   }
 
+  // ---------- WORD GROUPS FOR LOGIC ----------
+  const wakeWords = [
+    "\"alexa",
+    "\"hey alexa",
+    "\"echo",
+    "\"hey echo",
+    "\"ziggy",
+    "\"hey ziggy",
+    "\"computer",
+    "\"hey computer"
+  ];
+  const subtractions = [
+    "\"alexa\"",
+    "\"hey alexa\"",
+    "\"echo\"",
+    "\"hey echo\"",
+    "\"ziggy\"",
+    "\"hey ziggy\"",
+    "\"computer\"",
+    "\"hey computer\"",
+    "\"yes\"",
+    "\"no\"",
+    "no text stored",
+    "tap /",
+    "audio was",
+    "audio could",
+    "\"stop\"",
+    "\"yeah\"",
+    "\"okay\"",
+    "\"alexa stop\"",
+    "\"echo stop\"",
+    "\"ziggy stop\"",
+    "\"computer stop\""
+  ];
+  const groups = {
+    "Wake Word Usage": wakeWords,
+    "Subtractions": subtractions
+  };
+
   // ---------- HELPER: EXTRACT TRANSCRIPT FROM A RECORD ----------
   function extractTranscript(record){
     let transcript = "";
@@ -165,6 +204,7 @@ javascript:(function(){
             <th>Timestamp (ET)</th>
             <th>Device</th>
             <th>Utterance</th>
+            <th>Flags</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -172,8 +212,19 @@ javascript:(function(){
     </div>
   </div>
   <script>
+    // ---- Helper function for regex escaping ----
+    function escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+    }
+    
     // ---- Embedded data from parent ----
     let records = ${JSON.stringify(records)};
+    const wakeWords = ${JSON.stringify(wakeWords)};
+    const subtractions = ${JSON.stringify(subtractions)};
+    const groups = {
+      "Wake Word Usage": wakeWords,
+      "Subtractions": subtractions
+    };
     
     function extractTranscript(record){
       let transcript = "";
@@ -197,12 +248,28 @@ javascript:(function(){
         let device = (record.device && record.device.deviceName) || "Unknown";
         if(!data[device]){
           data[device] = { _utteranceCount: 0 };
+          groups["Wake Word Usage"].forEach(term => { data[device][term] = 0; });
+          groups["Subtractions"].forEach(term => { data[device][term] = 0; });
         }
         data[device]._utteranceCount++;
         if(firstValid === null || ts < firstValid) firstValid = ts;
         if(lastValid === null || ts > lastValid) lastValid = ts;
         let dateKey = new Date(ts).toLocaleDateString("en-US", { timeZone:"America/New_York" });
         dateData[dateKey] = (dateData[dateKey] || 0) + 1;
+        let transcript = extractTranscript(record).trim();
+        let lowerTranscript = transcript.toLowerCase();
+        groups["Wake Word Usage"].forEach(term => {
+          let lowerTerm = term.toLowerCase();
+          let regex = new RegExp(escapeRegExp(lowerTerm), "g");
+          let count = (lowerTranscript.match(regex) || []).length;
+          data[device][term] += count;
+        });
+        groups["Subtractions"].forEach(term => {
+          let lowerTerm = term.toLowerCase();
+          let regex = new RegExp(escapeRegExp(lowerTerm), "g");
+          let count = (lowerTranscript.match(regex) || []).length;
+          data[device][term] += count;
+        });
       });
       return { data, dateData, firstValid, lastValid };
     }
@@ -229,6 +296,42 @@ javascript:(function(){
         html += "<li>" + dev + ": " + summary.data[dev]._utteranceCount + "</li>";
       }
       html += "</ul>";
+      html += "<h3>Wake Word Usage</h3><ul>";
+      let totalWake = {};
+      groups["Wake Word Usage"].forEach(term => { totalWake[term] = 0; });
+      if(filterDevice === "All Devices"){
+        for(let dev in summary.data){
+          groups["Wake Word Usage"].forEach(term => {
+            totalWake[term] += (summary.data[dev][term] || 0);
+          });
+        }
+      } else {
+        groups["Wake Word Usage"].forEach(term => {
+          totalWake[term] = summary.data[filterDevice] ? summary.data[filterDevice][term] : 0;
+        });
+      }
+      groups["Wake Word Usage"].forEach(term => {
+        html += "<li>" + term + ": " + totalWake[term] + "</li>";
+      });
+      html += "</ul>";
+      html += "<h3>Subtractions</h3><ul>";
+      let totalSub = {};
+      groups["Subtractions"].forEach(term => { totalSub[term] = 0; });
+      if(filterDevice === "All Devices"){
+        for(let dev in summary.data){
+          groups["Subtractions"].forEach(term => {
+            totalSub[term] += (summary.data[dev][term] || 0);
+          });
+        }
+      } else {
+        groups["Subtractions"].forEach(term => {
+          totalSub[term] = summary.data[filterDevice] ? summary.data[filterDevice][term] : 0;
+        });
+      }
+      groups["Subtractions"].forEach(term => {
+        html += "<li>" + term + ": " + totalSub[term] + "</li>";
+      });
+      html += "</ul>";
       leftPanel.innerHTML = html;
     }
     
@@ -245,8 +348,23 @@ javascript:(function(){
         let localTs = new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
         let device = (record.device && record.device.deviceName) || "Unknown";
         let utterance = extractTranscript(record);
+        let words = utterance.split(/\\s+/).filter(w => w.length);
+        let flags = [];
+        if(words.length === 1) flags.push("Single Word");
+        let wakeCount = 0;
+        wakeWords.forEach(term => {
+          let regex = new RegExp(escapeRegExp(term.toLowerCase()), "gi");
+          wakeCount += (utterance.toLowerCase().match(regex) || []).length;
+        });
+        if(wakeCount > 0) flags.push("Wake Word");
+        let subCount = 0;
+        subtractions.forEach(term => {
+          let regex = new RegExp(escapeRegExp(term.toLowerCase()), "gi");
+          subCount += (utterance.toLowerCase().match(regex) || []).length;
+        });
+        if(subCount > 0) flags.push("Subtraction");
         let tr = document.createElement("tr");
-        tr.innerHTML = "<td>" + localTs + "</td><td>" + device + "</td><td>" + utterance + "</td>";
+        tr.innerHTML = "<td>" + localTs + "</td><td>" + device + "</td><td>" + utterance + "</td><td>" + flags.join(", ") + "</td>";
         tbody.appendChild(tr);
       });
     }
