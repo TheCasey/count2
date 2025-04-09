@@ -9,7 +9,7 @@ javascript:(function(){
     
     // Utility: escapeRegExp – escape special regex characters in a string so it can be used in a RegExp literal.
     function escapeRegExp(str) {
-        return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
     
     // Utility: debounce – returns a debounced version of func that delays invocation until no calls for "wait" ms.
