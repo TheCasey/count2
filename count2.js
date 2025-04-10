@@ -44,6 +44,7 @@ javascript:(function(){
   (function createUIPanel(){
     let panel = document.createElement("div");
     panel.style = "position:fixed;top:10px;left:10px;z-index:99999;background:#fff;padding:12px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.4);font-family:sans-serif;width:330px;font-size:14px;";
+    // Added a Copy Report button in the left panel HTML.
     panel.innerHTML = `
       <b>🗓️ Custom Alexa Utterance Export</b><br><br>
       <label>Start Date (ET):</label><br>
@@ -121,7 +122,7 @@ javascript:(function(){
   // UTTERANCE PROCESSING & UI RENDERING
   // ────────────────────────────────────────────── 
   function openFilteredPage(){
-    // Open new window with two panels
+    // Open new window with two panels.
     let win = window.open("", "_blank");
     win.document.write(`<!DOCTYPE html>
 <html>
@@ -145,6 +146,7 @@ javascript:(function(){
     <div id="leftPanel">
       <h2>Summary</h2>
       <div id="summary"></div>
+      <button id="copyReportBtn">Copy Report</button>
       <hr>
       <h3>Devices</h3>
       <div id="deviceList"></div>
@@ -173,26 +175,27 @@ javascript:(function(){
     // Utility: convert timestamp to ET.
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone: "America/New_York" });
     
-    // Global device settings per window (by device name).
+    // Global device settings (by device name).
     let deviceSettings = {};
-    // Set up override container for each record.
-    records.forEach((r) => { r._overrides = { WW: false, "1W": false, SR: false, DUP: false }; });
+    // Initialize override container for each record.
+    records.forEach((r) => { 
+      if(!r._overrides) r._overrides = { WW: false, "1W": false, SR: false, DUP: false };
+    });
     
     // Supported wake words (order matters: multi-word first)
     const wakeWords = ["hey alexa", "ok alexa", "alexa", "echo", "computer", "amazon"];
     
-    // Process flags for each record using current device settings and any manual overrides.
+    // Process flags for each record using current device settings and manual overrides.
     function processRecordFlags(){
       let deviceLastTranscript = {}; // for duplicate detection
       records.forEach(r => {
         r._activeFlags = []; // reset active flags
         
-        // Extract transcript. Now we include additional keys.
+        // Extract transcript using multiple possible keys.
         let transcript = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
-          // Preferred order: customer-transcript, then data-warning-message, then replacement-text.
           let preferredTypes = ["customer-transcript", "data-warning-message", "replacement-text"];
-          for (let pref of preferredTypes) {
+          for (let pref of preferredTypes){
             let found = r.voiceHistoryRecordItems.find(item => {
               return item.recordItemType && item.recordItemType.toLowerCase() === pref && item.transcriptText && item.transcriptText.trim();
             });
@@ -201,7 +204,6 @@ javascript:(function(){
               break;
             }
           }
-          // Fallback: any transcript that isn’t an Alexa response.
           if(!transcript){
             let found = r.voiceHistoryRecordItems.find(item => {
               return item.recordItemType && item.recordItemType.toLowerCase() !== "alexa_response" && item.transcriptText && item.transcriptText.trim();
@@ -248,59 +250,83 @@ javascript:(function(){
         
         // --- Duplicate Detection ---
         if(deviceLastTranscript[dev] && deviceLastTranscript[dev] === transcript && !r._overrides.DUP){
-          r._activeFlags.push("DUP");
+          // If already flagged as short utterance, mark duplicate as overridden.
+          if(r._activeFlags.includes("1W")){
+            r._activeFlags.push("DUP(OVERRIDE)");
+          } else {
+            r._activeFlags.push("DUP");
+          }
         } else {
           deviceLastTranscript[dev] = transcript;
         }
       });
     }
     
-    // Render the main table and update summary counts.
+    // Render the main table and update summary counts based on the current view.
     function renderData(){
       processRecordFlags();
       let tbody = win.document.getElementById("tableBody");
       tbody.innerHTML = "";
       let deviceFilter = win.document.getElementById("deviceFilter");
-      deviceFilter.innerHTML = `<option value="">All Devices</option>`;
+      let currentFilter = deviceFilter.value;
       
-      let totalUtterances = records.length;
+      // Create a filtered records array based on the device filter and assignment:
+      let visibleRecords = records.filter(r => {
+        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
+        if(currentFilter !== ""){
+          return dev === currentFilter;
+        } else {
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
+        }
+      });
+      
+      // Summary aggregates.
+      let totalUtterances = visibleRecords.length;
       let wwCounts = {};
       let subCounts = { "1W":0, "SR":0, "DUP":0 };
-      let deviceSet = new Set();
       let deviceCount = {};
+      let dailyCount = {};
+      let firstTs = null, lastTs = null;
       
-      records.forEach((r, i) => {
+      // Build table rows from visibleRecords.
+      visibleRecords.forEach((r, idx) => {
         let time = et(r.timestamp);
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        deviceSet.add(dev);
         deviceCount[dev] = (deviceCount[dev] || 0) + 1;
+        let dateOnly = et(r.timestamp).split(",")[0];
+        dailyCount[dateOnly] = (dailyCount[dateOnly] || 0) + 1;
+        if(!firstTs || r.timestamp < firstTs) firstTs = r.timestamp;
+        if(!lastTs || r.timestamp > lastTs) lastTs = r.timestamp;
         if(r._activeFlags.includes("WW")){
           let ww = r._detectedWW;
           wwCounts[ww] = (wwCounts[ww] || 0) + 1;
         }
-        ["1W","SR","DUP"].forEach(flag => {
-          if(r._activeFlags.includes(flag)) subCounts[flag]++;
+        // Count subtractions – count DUP only if it is exactly "DUP"
+        r._activeFlags.forEach(flag => {
+          if(flag === "1W") subCounts["1W"]++;
+          if(flag === "SR") subCounts["SR"]++;
+          if(flag === "DUP") subCounts["DUP"]++;
         });
         
-        // Build table row.
+        // Build row.
         let tr = win.document.createElement("tr");
         let flagsText = r._activeFlags.join(", ");
         let toggleCell = tr.insertCell(0);
-        toggleCell.innerHTML = `<button class='toggle' data-i='${i}'>▶</button> ${flagsText}`;
+        toggleCell.innerHTML = `<button class='toggle' data-idx='${r._idx || idx}'>▶</button> ${flagsText}`;
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
-          let target = win.document.getElementById("resp" + i);
+          let target = win.document.getElementById("resp" + idx);
           if(target){
             target.style.display = (target.style.display === "none" || target.style.display === "") ? "table-row" : "none";
           }
         });
-        tr.insertCell(1).innerText = time;
+        tr.insertCell(1).innerText = et(r.timestamp);
         tr.insertCell(2).innerText = dev;
         tr.insertCell(3).innerText = r.utteranceType || r.intent || "";
         tr.insertCell(4).innerText = r._transcript;
         tbody.appendChild(tr);
         
-        // Expandable row with Alexa Response.
+        // Expandable row for Alexa response.
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
           for(let item of r.voiceHistoryRecordItems){
@@ -311,41 +337,24 @@ javascript:(function(){
           }
         }
         let tr2 = win.document.createElement("tr");
-        tr2.id = `resp${i}`;
+        tr2.id = `resp${idx}`;
         tr2.style.display = "none";
         tr2.innerHTML = `<td colspan='5' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
         tbody.appendChild(tr2);
       });
       
-      // Build summary panel.
-      let summary = win.document.getElementById("summary");
+      // Build Summary HTML.
       let wwTotal = Object.values(wwCounts).reduce((a,b)=>a+b,0);
       let wwPct = totalUtterances ? Math.round(wwTotal/totalUtterances*100) : 0;
-      summary.innerHTML = `
-        <p><b>First:</b> ${et(records[0]?.timestamp)}</p>
-        <p><b>Last:</b> ${et(records.at(-1)?.timestamp)}</p>
-        <h4>Daily Breakdown</h4>
-        <ul>${
-          Object.entries(records.reduce((acc, r)=>{
-            let day = et(r.timestamp).split(",")[0];
-            acc[day] = (acc[day] || 0) + 1;
-            return acc;
-          }, {}))
-          .map(([d,c])=>`<li>${d}: ${c}</li>`)
-          .join('')
-        }</ul>
-        <h4>Devices</h4>
-        <ul>${
-          Object.entries(deviceCount)
-          .map(([d,c])=>`<li>${d}: ${c}</li>`)
-          .join('')
-        }</ul>
+      let summaryHTML = `
+        <p><b>First Valid:</b> ${firstTs ? et(firstTs) : "N/A"}</p>
+        <p><b>Last Valid:</b> ${lastTs ? et(lastTs) : "N/A"}</p>
+        <h4>Daily Overview</h4>
+        <ul>${Object.entries(dailyCount).map(([d,c])=>`<li>${d}: ${c}</li>`).join('')}</ul>
+        <h4>Device Overview</h4>
+        <ul>${Object.entries(deviceCount).map(([d,c])=>`<li>${d}: ${c}</li>`).join('')}</ul>
         <h4>Wake Words</h4>
-        <ul>${
-          Object.entries(wwCounts)
-          .map(([w,c])=>`<li>${w}: ${c}</li>`)
-          .join('')
-        }</ul>
+        <ul>${Object.entries(wwCounts).map(([w,c])=>`<li>${w}: ${c}</li>`).join('')}</ul>
         <p>Total WW: ${wwTotal} (${wwPct}% of utterances)</p>
         <h4>Subtractions</h4>
         <ul>
@@ -354,6 +363,8 @@ javascript:(function(){
           <li>Duplicates: ${subCounts["DUP"]} <span class="viewBtn" data-cat="DUP">(view)</span></li>
         </ul>
       `;
+      win.document.getElementById("summary").innerHTML = summaryHTML;
+      
       // Reattach viewBtn events.
       win.document.querySelectorAll(".viewBtn").forEach(btn=>{
         btn.addEventListener("click", function(){
@@ -362,27 +373,85 @@ javascript:(function(){
         });
       });
       
-      // Build device filter options.
-      deviceSet.forEach(dev => {
-        if(deviceSettings[dev]?.assigned){
-          let o = win.document.createElement("option");
-          o.value = dev; o.textContent = dev;
-          deviceFilter.appendChild(o);
+      // Update device filter options (only for assigned devices).
+      deviceFilter.innerHTML = `<option value="">All Devices</option>`;
+      Object.keys(deviceSettings).forEach(dev => {
+        if(deviceSettings[dev].assigned){
+          let opt = win.document.createElement("option");
+          opt.value = dev;
+          opt.textContent = dev;
+          deviceFilter.appendChild(opt);
         }
       });
+    }
+    
+    // Generate a text report based on the visible records.
+    function generateReport(){
+      let deviceFilter = win.document.getElementById("deviceFilter");
+      let currentFilter = deviceFilter.value;
+      let visibleRecords = records.filter(r => {
+        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
+        if(currentFilter !== ""){
+          return dev === currentFilter;
+        } else {
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
+        }
+      });
+      if(visibleRecords.length === 0) return "No records available for report.";
       
-      // Reattach search listener.
-      win.document.getElementById("searchBox").oninput = function(e){
-        let val = e.target.value.toLowerCase();
-        [...win.document.getElementById("tableBody").children].forEach(tr=>{
-          if(tr.id && tr.id.startsWith("resp")) return;
-          tr.style.display = tr.innerText.toLowerCase().includes(val) ? "" : "none";
-          let next = tr.nextElementSibling;
-          if(next && next.id && next.id.startsWith("resp")){
-            next.style.display = "none";
-          }
+      // Overview aggregations.
+      let deviceCount = {};
+      let dailyCount = {};
+      let subPerDevice = {}; // { device: { "1W":count, "SR":count, "DUP":count } }
+      let firstTs = null, lastTs = null;
+      visibleRecords.forEach(r => {
+        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
+        deviceCount[dev] = (deviceCount[dev] || 0) + 1;
+        let d = et(r.timestamp).split(",")[0];
+        dailyCount[d] = (dailyCount[d] || 0) + 1;
+        if(!firstTs || r.timestamp < firstTs) firstTs = r.timestamp;
+        if(!lastTs || r.timestamp > lastTs) lastTs = r.timestamp;
+        if(!subPerDevice[dev]) subPerDevice[dev] = { "1W":0, "SR":0, "DUP":0 };
+        r._activeFlags.forEach(flag => {
+          if(flag === "1W") subPerDevice[dev]["1W"]++;
+          if(flag === "SR") subPerDevice[dev]["SR"]++;
+          if(flag === "DUP") subPerDevice[dev]["DUP"]++;
         });
-      };
+      });
+      // Overall subtractions.
+      let total1W = Object.values(subPerDevice).reduce((acc, cur) => acc + (cur["1W"]||0), 0);
+      let totalSR = Object.values(subPerDevice).reduce((acc, cur) => acc + (cur["SR"]||0), 0);
+      let totalDUP = Object.values(subPerDevice).reduce((acc, cur) => acc + (cur["DUP"]||0), 0);
+      let totalSubs = total1W + totalSR + totalDUP;
+      
+      // Build report string.
+      let report = "";
+      report += "Device Overview:\n";
+      Object.entries(deviceCount).forEach(([dev, cnt]) => {
+        report += `${dev}: ${cnt}\n`;
+      });
+      report += "\n";
+      report += `First Valid: ${et(firstTs)}\n`;
+      report += `Last Valid: ${et(lastTs)}\n`;
+      report += "\n";
+      report += "Daily Overview:\n";
+      Object.entries(dailyCount).forEach(([day, cnt]) => {
+        report += `${day}: ${cnt}\n`;
+      });
+      report += "\n";
+      report += "Subtractions Per Device:\n\n";
+      Object.entries(subPerDevice).forEach(([dev, subs]) => {
+        report += `${dev}:\n`;
+        report += `  Short Utterance: ${subs["1W"]}\n`;
+        report += `  System Replacement: ${subs["SR"]}\n`;
+        report += `  Duplicates: ${subs["DUP"]}\n\n`;
+      });
+      report += "Overall Subtraction Totals:\n";
+      report += `Total Short Utterances: ${total1W}\n`;
+      report += `Total System Replacement: ${totalSR}\n`;
+      report += `Total Duplicates: ${totalDUP}\n`;
+      report += `Total Subtractions: ${totalSubs}\n`;
+      return report;
     }
     
     // ────────────────────────────────────────────── 
@@ -404,6 +473,7 @@ javascript:(function(){
           let d = e.target.getAttribute("data-dev");
           deviceSettings[d].assigned = e.target.checked;
           renderData();
+          renderDeviceSettings();
         };
       });
       [...win.document.querySelectorAll(".textChk")].forEach(chk=>{
@@ -411,6 +481,7 @@ javascript:(function(){
           let d = e.target.getAttribute("data-dev");
           deviceSettings[d].textBased = e.target.checked;
           renderData();
+          renderDeviceSettings();
         };
       });
     }
@@ -437,7 +508,19 @@ javascript:(function(){
       win.document.body.appendChild(modalOverlay);
       
       let modalBody = modal.querySelector("#modalBody");
-      records.forEach((r, i)=>{
+      // Only include visible records based on the current filter.
+      let deviceFilter = win.document.getElementById("deviceFilter");
+      let currentFilter = deviceFilter.value;
+      let visibleRecords = records.filter(r => {
+        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
+        if(currentFilter !== ""){
+          return dev === currentFilter;
+        } else {
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
+        }
+      });
+      
+      visibleRecords.forEach((r, i)=>{
         if(r._activeFlags.includes(category) || r._overrides[category]){
           let tr = win.document.createElement("tr");
           tr.innerHTML = `<td>${et(r.timestamp)}</td>
@@ -452,13 +535,18 @@ javascript:(function(){
         chk.onchange = (e)=>{
           let idx = e.target.getAttribute("data-i");
           let cat = e.target.getAttribute("data-cat");
-          records[idx]._overrides[cat] = e.target.checked;
-          renderData();
+          // Apply override for the visible record (this example uses the index in the visible set)
+          let visible = visibleRecords;
+          let r = visible[idx];
+          if(r) {
+            r._overrides[cat] = e.target.checked;
+            renderData();
+          }
         };
       });
       
       modal.querySelector("#resetOverrides").onclick = ()=>{
-        records.forEach(r=>{
+        visibleRecords.forEach(r=>{
           r._overrides[category] = false;
         });
         renderData();
@@ -475,7 +563,7 @@ javascript:(function(){
     // ────────────────────────────────────────────── 
     // EVENT HANDLERS & INITIAL RENDERING
     // ────────────────────────────────────────────── 
-    // Attach initial search listener.
+    // Attach search listener.
     win.document.getElementById("searchBox").oninput = function(e){
       let val = e.target.value.toLowerCase();
       [...win.document.getElementById("tableBody").children].forEach(tr=>{
@@ -490,14 +578,7 @@ javascript:(function(){
     
     // Device filter listener.
     win.document.getElementById("deviceFilter").onchange = ()=>{
-      let filterVal = win.document.getElementById("deviceFilter").value;
-      [...win.document.getElementById("tableBody").children].forEach(tr=>{
-        if(tr.id && tr.id.startsWith("resp")) return;
-        let dev = tr.cells[2].textContent;
-        tr.style.display = (!filterVal || dev===filterVal) ? "" : "none";
-        let next = tr.nextElementSibling;
-        if(next && next.id && next.id.startsWith("resp")) next.style.display = "none";
-      });
+      renderData();
     };
     
     // Expand/Collapse All toggle.
@@ -512,6 +593,16 @@ javascript:(function(){
         rows.forEach(r=> r.style.display = "none");
         expandAllBtn.textContent = "Expand All";
       }
+    };
+    
+    // Attach Copy Report button event.
+    win.document.getElementById("copyReportBtn").onclick = ()=>{
+      let reportText = generateReport();
+      navigator.clipboard.writeText(reportText).then(()=>{
+        alert("Report copied to clipboard.");
+      }, ()=>{
+        alert("Failed to copy report.");
+      });
     };
     
     // Initial rendering.
