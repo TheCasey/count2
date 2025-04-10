@@ -10,16 +10,16 @@ javascript:(function(){
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
-  // selectReactDate simulates user actions to select a date via a React Datepicker.
-  // dateInputId: the id of the date input element (e.g. "date-start" or "date-end")
-  // targetDateStr: the target date in MM/DD/YYYY format (e.g. "03/22/2025")
+  // selectReactDate simulates user actions in the React Datepicker.
+  // dateInputId: the id of the date input element ("date-start" or "date-end")
+  // targetDateStr: target date in MM/DD/YYYY format (e.g., "03/22/2025")
   function selectReactDate(dateInputId, targetDateStr) {
     let parts = targetDateStr.split("/");
     if(parts.length !== 3) {
       console.error("Target date must be in MM/DD/YYYY format");
       return;
     }
-    let targetMonth = parseInt(parts[0], 10) - 1; // zero-based month
+    let targetMonth = parseInt(parts[0], 10) - 1;
     let targetDay = parseInt(parts[1], 10);
     let targetYear = parseInt(parts[2], 10);
     
@@ -28,11 +28,9 @@ javascript:(function(){
       console.warn("Could not find date input with id: " + dateInputId);
       return;
     }
-    // Open the React Datepicker.
     input.click();
     console.log("Clicked date input " + dateInputId + " to open datepicker.");
     
-    // After a delay, set the month and year.
     setTimeout(function(){
       let monthSelect = document.querySelector(".react-datepicker__month-select");
       let yearSelect = document.querySelector(".react-datepicker__year-select");
@@ -45,9 +43,8 @@ javascript:(function(){
       } else {
         console.warn("Could not find the month/year dropdowns in the datepicker.");
       }
-      // Wait for the calendar to update, then select the day.
       setTimeout(function(){
-        let targetOrdinal = getOrdinal(targetDay); // e.g., "22nd"
+        let targetOrdinal = getOrdinal(targetDay);
         let dayButtons = document.querySelectorAll(".react-datepicker__day");
         let found = false;
         dayButtons.forEach(function(btn){
@@ -65,9 +62,8 @@ javascript:(function(){
     }, 500);
   }
 
-  // setPageDateFilters simulates clicks to expose the custom date selectors and then calls selectReactDate sequentially.
+  // setPageDateFilters simulates clicks to expose the custom date selectors and then selects the dates.
   function setPageDateFilters(startDate, endDate) {
-    // Step 1: Click the filter-menu button to expose filtering options.
     let filterMenuBtn = document.querySelector("#filter-menu button");
     if(filterMenuBtn){
       filterMenuBtn.click();
@@ -76,7 +72,6 @@ javascript:(function(){
       console.warn("Filter-menu button not found.");
     }
     setTimeout(function(){
-      // Step 2: Click the date filter menu button.
       let dateFilterBtn = document.querySelector("div.filter-by-date-menu button");
       if(dateFilterBtn){
         dateFilterBtn.click();
@@ -85,19 +80,15 @@ javascript:(function(){
         console.warn("Date filter menu button not found.");
       }
       setTimeout(function(){
-        // Step 3: Click the custom date range option.
         let customOption = document.querySelector("div.filter-options-list button");
         if(customOption){
           customOption.click();
           console.log("Clicked custom date range option.");
         } else {
-          console.warn("Custom date option button not found.");
+          console.warn("Custom date option not found.");
         }
         setTimeout(function(){
-          // Now the date inputs should be available.
-          // First, select the start date.
           selectReactDate("date-start", startDate);
-          // After 2 seconds, select the end date.
           setTimeout(function(){
             selectReactDate("date-end", endDate);
           }, 2000);
@@ -121,10 +112,10 @@ javascript:(function(){
     let scrollInterval = setInterval(function(){
       u++;
       let fullMsg = document.querySelector(".full-width-message");
-      if(fullMsg) {
-        fullMsg.scrollIntoView({behavior:"smooth", block:"center"});
+      if(fullMsg){
+        fullMsg.scrollIntoView({ behavior:"smooth", block:"center" });
       } else {
-        window.scrollBy({top: innerHeight, behavior:"smooth"});
+        window.scrollBy({ top: innerHeight, behavior:"smooth" });
       }
       let t = document.body.scrollHeight;
       s = (t === p) ? s + 1 : 0;
@@ -152,13 +143,13 @@ javascript:(function(){
   // ────────────────────────────────────────────── 
   let capturedFetch = null;
   let records = [];
-  function logMsg(msg){
+  function logMsg(msg) {
     document.getElementById("fetchLog").innerText = msg;
   }
   const originalFetch = window.fetch;
-  window.fetch = async function(...args){
+  window.fetch = async function(...args) {
     let [url, options] = args;
-    if(url.includes("customer-history-records-v2") && !capturedFetch){
+    if(url.includes("customer-history-records-v2") && !capturedFetch) {
       capturedFetch = { url: url, init: options };
       logMsg("✅ Captured via fetch.");
     }
@@ -166,20 +157,20 @@ javascript:(function(){
   };
   const origOpen = XMLHttpRequest.prototype.open;
   const origSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function(method, url){
+  XMLHttpRequest.prototype.open = function(method, url) {
     this._url = url;
     this._method = method;
     this._isTarget = url.includes("customer-history-records-v2");
     this._headers = {};
     const origSetRequestHeader = this.setRequestHeader;
-    this.setRequestHeader = function(key, value){
+    this.setRequestHeader = function(key, value) {
       this._headers[key.toLowerCase()] = value;
       return origSetRequestHeader.apply(this, arguments);
     };
     return origOpen.apply(this, arguments);
   };
-  XMLHttpRequest.prototype.send = function(body){
-    if(this._isTarget && !capturedFetch){
+  XMLHttpRequest.prototype.send = function(body) {
+    if(this._isTarget && !capturedFetch) {
       capturedFetch = { url: this._url, init: { method: this._method, body: body, headers: this._headers } };
       logMsg("✅ Captured via XHR.");
     }
@@ -271,7 +262,7 @@ javascript:(function(){
   }
 
   // ────────────────────────────────────────────── 
-  // UTTERANCE PROCESSING & UI RENDERING
+  // OPEN RESULTS WINDOW (openFilteredPage)
   // ────────────────────────────────────────────── 
   function openFilteredPage(){
     let win = window.open("", "_blank");
@@ -323,10 +314,12 @@ javascript:(function(){
 </html>`);
     win.document.close();
 
+    // All UI functions below should reference win.document for the results window.
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
     let deviceSettings = {};
     records.forEach(r => { 
-      if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
+      if(!r._overrides) 
+        r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
     });
     const wakeWords = ["alexa","hello alexa","hey alexa","ok alexa","hi alexa","hello ziggy","hey ziggy","ok ziggy","hi ziggy","computer","ok computer","hello computer","hey computer","hi computer","ok computer","echo","hey echo","hello echo","hi echo","ok echo"];
 
@@ -342,7 +335,10 @@ javascript:(function(){
               return item.recordItemType && item.recordItemType.toLowerCase() === pref &&
                      item.transcriptText && item.transcriptText.trim();
             });
-            if(found){ transcript = found.transcriptText.trim(); break; }
+            if(found){
+              transcript = found.transcriptText.trim();
+              break;
+            }
           }
           if(!transcript){
             let found = r.voiceHistoryRecordItems.find(item => {
@@ -364,15 +360,19 @@ javascript:(function(){
         if(detectedWW && !r._overrides.WW){
           r._activeFlags.push("WW");
           r._detectedWW = detectedWW;
-        } else {
-          r._detectedWW = null;
+        } else { 
+          r._detectedWW = null; 
         }
         let words = transcript.split(/\s+/).filter(w => w.length);
-        if(words.length <= 2 && !r._overrides["1W"]){ r._activeFlags.push("1W"); }
+        if(words.length <= 2 && !r._overrides["1W"]){
+          r._activeFlags.push("1W");
+        }
         let type = r.utteranceType || r.intent || "";
         let isRoutine = type === "ROUTINES_OR_TAP_TO_ALEXA";
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(deviceSettings[dev] === undefined){ deviceSettings[dev] = { assigned:true, textBased:false }; }
+        if(deviceSettings[dev] === undefined){
+          deviceSettings[dev] = { assigned:true, textBased:false };
+        }
         if(type !== "GENERAL"){
           if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){
             if(r._activeFlags.includes("1W")){
@@ -390,7 +390,9 @@ javascript:(function(){
           } else {
             r._activeFlags.push("DUP");
           }
-        } else { deviceLastTranscript[dev] = transcript; }
+        } else { 
+          deviceLastTranscript[dev] = transcript; 
+        }
       });
     }
 
@@ -436,7 +438,9 @@ javascript:(function(){
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
           let target = win.document.getElementById("resp" + idx);
-          if(target){ target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none"; }
+          if(target){ 
+            target.style.display = (target.style.display==="none"||target.style.display==="") ? "table-row" : "none"; 
+          }
         });
         tr.insertCell(1).innerText = et(r.timestamp);
         tr.insertCell(2).innerText = dev;
@@ -481,7 +485,7 @@ javascript:(function(){
       `;
       win.document.getElementById("summary").innerHTML = summaryHTML;
 
-      // Rebuild device filter dropdown and preserve selection.
+      // Rebuild device filter dropdown while preserving selection.
       let deviceFilterEl = win.document.getElementById("deviceFilter");
       let currentVal = deviceFilterEl.value;
       deviceFilterEl.innerHTML = `<option value="">All Devices</option>`;
@@ -514,7 +518,8 @@ javascript:(function(){
       let currentFilter = deviceFilterEl.value;
       let visibleRecords = records.filter(r=>{
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter !== "") return dev === currentFilter; else return deviceSettings[dev] && deviceSettings[dev].assigned;
+        if(currentFilter !== "") return dev === currentFilter;
+        else return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
       if(visibleRecords.length===0) return "No records available for report.";
       
@@ -529,8 +534,8 @@ javascript:(function(){
       visibleRecords.forEach(r=>{
         let d = et(r.timestamp).split(",")[0];
         dailyCount[d] = (dailyCount[d] || 0) + 1;
-        if(!firstTs || r.timestamp<firstTs) firstTs = r.timestamp;
-        if(!lastTs || r.timestamp>lastTs) lastTs = r.timestamp;
+        if(!firstTs || r.timestamp < firstTs) firstTs = r.timestamp;
+        if(!lastTs || r.timestamp > lastTs) lastTs = r.timestamp;
       });
       
       let wwCounts = {};
@@ -653,15 +658,13 @@ javascript:(function(){
 
     renderData();
     renderDeviceSettings();
-    win.renderDeviceSettings = renderDeviceSettings;
   } // end openFilteredPage
 
   // ────────────────────────────────────────────── 
   // DEVICE SETTINGS RENDERING (for the results window)
   // ────────────────────────────────────────────── 
   function renderDeviceSettings(){
-    // This function is now defined and called from within openFilteredPage.
-    // It renders the devices with their Assigned and Text Based Input checkboxes.
+    // Use the results window's document.
     let winDeviceList = document.querySelector("#deviceList");
     if(!winDeviceList) return;
     winDeviceList.innerHTML = "";
