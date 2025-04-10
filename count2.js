@@ -148,7 +148,7 @@ javascript:(function(){
   }
 
   // ────────────────────────────────────────────── 
-  // FETCH & XHR CAPTURE (existing functionality)
+  // GLOBAL VARIABLES & FETCH/XHR CAPTURE
   // ────────────────────────────────────────────── 
   let capturedFetch = null;
   let records = [];
@@ -223,27 +223,20 @@ javascript:(function(){
   }
 
   async function fetchUtterances(){
-    // Get the selected dates in ISO format from the UI.
     let startDateVal = document.getElementById("startDate").value;
     let endDateVal = document.getElementById("endDate").value;
     if(!startDateVal || !endDateVal) {
       alert("Please select both dates.");
       return;
     }
-    // Convert ISO date to MM/DD/YYYY.
     let startDateFormatted = reformatDate(startDateVal);
     let endDateFormatted = reformatDate(endDateVal);
     
-    // Expose the date selectors and choose the dates.
+    // Expose and set the date selectors.
     setPageDateFilters(startDateFormatted, endDateFormatted);
-    
-    // Start autoscrolling so the page loads audio logs.
     autoScrollPage();
-    
-    // Wait a few seconds to allow the page to update.
     await new Promise(r => setTimeout(r, 3000));
     
-    // Proceed with fetching Alexa history.
     let startHour = document.getElementById("startHour").value;
     let startMin = document.getElementById("startMin").value;
     let startAMPM = document.getElementById("startAMPM").value;
@@ -253,7 +246,7 @@ javascript:(function(){
     
     let startTs = getTimestamp(startDateVal, startHour, startMin, startAMPM);
     let endTs = getTimestamp(endDateVal, endHour, endMin, endAMPM);
-    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
+    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York" })}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York" })}?`)){
       return;
     }
     let apiUrl = `https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=${startTs}&endTime=${endTs}&disableGlobalNav=false`;
@@ -292,7 +285,7 @@ javascript:(function(){
       #rightPanel { width:70%; padding:10px; overflow:auto; }
       table { width:100%; margin-top:10px; border-collapse:collapse; }
       th, td { padding:4px; border:1px solid #ccc; font-size:13px; }
-      .modalOverlay { position:fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; }
+      .modalOverlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; }
       .modal { background:#fff; padding:20px; border-radius:8px; max-height:80vh; overflow:auto; width:80%; }
       .closeModal { float:right; cursor:pointer; font-size:18px; }
       .deviceSettings { margin-bottom:10px; padding:5px; border:1px solid #ccc; border-radius:6px; }
@@ -349,10 +342,7 @@ javascript:(function(){
               return item.recordItemType && item.recordItemType.toLowerCase() === pref &&
                      item.transcriptText && item.transcriptText.trim();
             });
-            if(found){
-              transcript = found.transcriptText.trim();
-              break;
-            }
+            if(found){ transcript = found.transcriptText.trim(); break; }
           }
           if(!transcript){
             let found = r.voiceHistoryRecordItems.find(item => {
@@ -378,21 +368,17 @@ javascript:(function(){
           r._detectedWW = null;
         }
         let words = transcript.split(/\s+/).filter(w => w.length);
-        if(words.length <= 2 && !r._overrides["1W"]){
-          r._activeFlags.push("1W");
-        }
+        if(words.length <= 2 && !r._overrides["1W"]){ r._activeFlags.push("1W"); }
         let type = r.utteranceType || r.intent || "";
         let isRoutine = type === "ROUTINES_OR_TAP_TO_ALEXA";
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(deviceSettings[dev] === undefined){
-          deviceSettings[dev] = { assigned: true, textBased: false };
-        }
+        if(deviceSettings[dev] === undefined){ deviceSettings[dev] = { assigned:true, textBased:false }; }
         if(type !== "GENERAL"){
           if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){
             if(r._activeFlags.includes("1W")){
               r._activeFlags.push("SR");
-              r._overrides.SR = true; // Auto override for SR if also short
-            } else {
+              r._overrides.SR = true;
+            } else { 
               r._activeFlags.push("SR");
             }
           }
@@ -400,13 +386,11 @@ javascript:(function(){
         if(deviceLastTranscript[dev] && deviceLastTranscript[dev] === transcript && !r._overrides.DUP){
           if(r._activeFlags.includes("1W") || r._activeFlags.includes("SR")){
             r._activeFlags.push("DUP");
-            r._overrides.DUP = true; // Auto override for duplicates if also 1W or SR
+            r._overrides.DUP = true;
           } else {
             r._activeFlags.push("DUP");
           }
-        } else {
-          deviceLastTranscript[dev] = transcript;
-        }
+        } else { deviceLastTranscript[dev] = transcript; }
       });
     }
 
@@ -452,9 +436,7 @@ javascript:(function(){
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
           let target = win.document.getElementById("resp" + idx);
-          if(target){
-            target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none";
-          }
+          if(target){ target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none"; }
         });
         tr.insertCell(1).innerText = et(r.timestamp);
         tr.insertCell(2).innerText = dev;
@@ -498,22 +480,23 @@ javascript:(function(){
         </ul>
       `;
       win.document.getElementById("summary").innerHTML = summaryHTML;
-      
-      // Preserve selected device filter if possible.
-      let currentVal = deviceFilter.value;
-      deviceFilter.innerHTML = `<option value="">All Devices</option>`;
+
+      // Rebuild device filter dropdown and preserve selection.
+      let deviceFilterEl = win.document.getElementById("deviceFilter");
+      let currentVal = deviceFilterEl.value;
+      deviceFilterEl.innerHTML = `<option value="">All Devices</option>`;
       Object.keys(deviceSettings).forEach(dev=>{
         if(deviceSettings[dev].assigned){
           let opt = win.document.createElement("option");
           opt.value = dev;
           opt.textContent = dev;
-          deviceFilter.appendChild(opt);
+          deviceFilterEl.appendChild(opt);
         }
       });
-      if(currentVal && [...deviceFilter.options].some(opt => opt.value === currentVal)){
-        deviceFilter.value = currentVal;
+      if(currentVal && [...deviceFilterEl.options].some(opt => opt.value === currentVal)){
+        deviceFilterEl.value = currentVal;
       } else {
-        deviceFilter.value = "";
+        deviceFilterEl.value = "";
       }
       
       win.document.querySelectorAll(".viewBtn").forEach(btn=>{
@@ -524,151 +507,108 @@ javascript:(function(){
       });
     }
 
+    // generateReport builds a plain-text report with Markdown bold headings.
+    // It includes only devices in the current filtered view.
     function generateReport(){
-      let deviceFilter = win.document.getElementById("deviceFilter");
-      let currentFilter = deviceFilter.value;
+      let deviceFilterEl = win.document.getElementById("deviceFilter");
+      let currentFilter = deviceFilterEl.value;
       let visibleRecords = records.filter(r=>{
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter!==""){
-          return dev===currentFilter;
-        } else {
-          return deviceSettings[dev] && deviceSettings[dev].assigned;
-        }
+        if(currentFilter !== "") return dev === currentFilter; else return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
       if(visibleRecords.length===0) return "No records available for report.";
       
-      let deviceCount = {}, dailyCount = {}, subPerDevice = {};
-      let firstTs = null, lastTs = null;
+      let deviceCount = {};
       visibleRecords.forEach(r=>{
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
         deviceCount[dev] = (deviceCount[dev] || 0) + 1;
+      });
+      
+      let dailyCount = {};
+      let firstTs = null, lastTs = null;
+      visibleRecords.forEach(r=>{
         let d = et(r.timestamp).split(",")[0];
         dailyCount[d] = (dailyCount[d] || 0) + 1;
         if(!firstTs || r.timestamp<firstTs) firstTs = r.timestamp;
         if(!lastTs || r.timestamp>lastTs) lastTs = r.timestamp;
-        if(!subPerDevice[dev]) subPerDevice[dev] = {"1W":0,"SR":0,"DUP":0};
-        r._activeFlags.forEach(flag=>{
-          if(flag==="1W") subPerDevice[dev]["1W"]++;
-          if(flag==="SR") subPerDevice[dev]["SR"]++;
-          if(flag==="DUP") subPerDevice[dev]["DUP"]++;
-        });
-      });
-      let total1W = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["1W"]||0),0);
-      let totalSR = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["SR"]||0),0);
-      let totalDUP = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["DUP"]||0),0);
-      let totalSubs = total1W + totalSR + totalDUP;
-      let report = "";
-      report += "Device Overview:\n";
-      Object.entries(deviceCount).forEach(([dev,cnt])=>{ report += `${dev}: ${cnt}\n`; });
-      report += "\n";
-      report += `First Valid: ${et(firstTs)}\n`;
-      report += `Last Valid: ${et(lastTs)}\n`;
-      report += "\n";
-      report += "Daily Overview:\n";
-      Object.entries(dailyCount).forEach(([day,cnt])=>{ report += `${day}: ${cnt}\n`; });
-      report += "\n";
-      report += "Subtractions Per Device:\n\n";
-      Object.entries(subPerDevice).forEach(([dev,subs])=>{
-        report += `${dev}:\n`;
-        report += `  Short Utterance: ${subs["1W"]}\n`;
-        report += `  System Replacement: ${subs["SR"]}\n`;
-        report += `  Duplicates: ${subs["DUP"]}\n\n`;
-      });
-      report += "Overall Subtraction Totals:\n";
-      report += `Total Short Utterances: ${total1W}\n`;
-      report += `Total System Replacement: ${totalSR}\n`;
-      report += `Total Duplicates: ${totalDUP}\n`;
-      report += `Total Subtractions: ${totalSubs}\n`;
-      return report;
-    }
-
-    function renderDeviceSettings(){
-      let deviceListDiv = win.document.getElementById("deviceList");
-      deviceListDiv.innerHTML = "";
-      Object.entries(deviceSettings).forEach(([dev, settings])=>{
-        let div = win.document.createElement("div");
-        div.className = "deviceSettings";
-        div.innerHTML = `<strong>${dev}</strong><br>
-          <label><input type="checkbox" class="assignChk" data-dev="${dev}" ${settings.assigned ? "checked" : ""}> Assigned</label>
-          <label><input type="checkbox" class="textChk" data-dev="${dev}" ${settings.textBased ? "checked" : ""}> Text Based Input</label>`;
-        deviceListDiv.appendChild(div);
-      });
-      [...win.document.querySelectorAll(".assignChk")].forEach(chk=>{
-        chk.onchange = function(e){
-          let d = e.target.getAttribute("data-dev");
-          deviceSettings[d].assigned = e.target.checked;
-          renderData();
-          renderDeviceSettings();
-        };
-      });
-      [...win.document.querySelectorAll(".textChk")].forEach(chk=>{
-        chk.onchange = function(e){
-          let d = e.target.getAttribute("data-dev");
-          deviceSettings[d].textBased = e.target.checked;
-          renderData();
-          renderDeviceSettings();
-        };
-      });
-    }
-
-    function openOverrideModal(category){
-      let modalOverlay = win.document.createElement("div");
-      modalOverlay.className = "modalOverlay";
-      let modal = win.document.createElement("div");
-      modal.className = "modal";
-      modal.innerHTML = `<span class="closeModal">✖</span>
-        <h3>Override for ${category}</h3>
-        <table>
-          <thead>
-            <tr><th>Time (ET)</th><th>Device</th><th>Transcript</th><th>Override?</th></tr>
-          </thead>
-          <tbody id="modalBody"></tbody>
-        </table>
-        <button id="resetOverrides">Reset Overrides</button>
-      `;
-      modalOverlay.appendChild(modal);
-      win.document.body.appendChild(modalOverlay);
-      
-      let modalBody = modal.querySelector("#modalBody");
-      let deviceFilter = win.document.getElementById("deviceFilter");
-      let currentFilter = deviceFilter.value;
-      let visibleRecords = records.filter(r=>{
-        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter!=="") return dev === currentFilter; else return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
       
-      visibleRecords.forEach((r, i)=>{
-        if(r._activeFlags.includes(category) || r._overrides[category]){
-          let tr = win.document.createElement("tr");
-          tr.innerHTML = `<td>${et(r.timestamp)}</td>
-            <td>${(r.device && r.device.deviceName) || "Unknown"}</td>
-            <td>${r._transcript}</td>
-            <td><input type="checkbox" data-i="${i}" data-cat="${category}" ${r._overrides[category] ? "checked" : ""}></td>`;
-          modalBody.appendChild(tr);
+      let wwCounts = {};
+      visibleRecords.forEach(r=>{
+        if(r._activeFlags.includes("WW") && r._detectedWW) {
+          wwCounts[r._detectedWW] = (wwCounts[r._detectedWW] || 0) + 1;
         }
       });
       
-      [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
-        chk.onchange = function(e){
-          let idx = e.target.getAttribute("data-i");
-          let cat = e.target.getAttribute("data-cat");
-          let visible = visibleRecords;
-          let r = visible[idx];
-          if(r) { r._overrides[cat] = e.target.checked; renderData(); }
-        };
+      let subsByDev = {};
+      visibleRecords.forEach(r=>{
+        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
+        let flags = r._activeFlags.filter(f => f==="1W" || f==="SR" || f==="DUP" || f.indexOf("DUP") > -1);
+        if(flags.length > 0) {
+          if(!subsByDev[dev]) subsByDev[dev] = {};
+          let transcript = r._transcript || "[No Transcript]";
+          if(!subsByDev[dev][transcript]) subsByDev[dev][transcript] = new Set();
+          flags.forEach(f => subsByDev[dev][transcript].add(f));
+        }
       });
       
-      modal.querySelector("#resetOverrides").onclick = function(){
-        visibleRecords.forEach(r=>{ r._overrides[category] = false; });
-        renderData();
-        [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
-          chk.checked = false;
-        });
-      };
+      let totalSubtractions = visibleRecords.filter(r => 
+        r._activeFlags.some(f => f==="1W" || f==="SR" || f==="DUP")
+      ).length;
+      let total1W = visibleRecords.filter(r => r._activeFlags.includes("1W")).length;
+      let totalSR = visibleRecords.filter(r => r._activeFlags.includes("SR")).length;
+      let totalDUP = visibleRecords.filter(r => r._activeFlags.includes("DUP")).length;
       
-      modal.querySelector(".closeModal").onclick = function(){
-        win.document.body.removeChild(modalOverlay);
-      };
+      let report = "";
+      report += "**Device Overview:**\n";
+      for(let dev in deviceCount) {
+        report += dev + ": " + deviceCount[dev] + "\n";
+      }
+      report += "\n**Daily Overview:**\n";
+      report += "First Valid: " + et(firstTs) + "\n";
+      report += "Last Valid: " + et(lastTs) + "\n";
+      for(let day in dailyCount) {
+        report += day + ": " + dailyCount[day] + "\n";
+      }
+      report += "\n**Wake Word Usage:**\n";
+      for(let ww in wwCounts) {
+        report += ww + ": " + wwCounts[ww] + "\n";
+      }
+      report += "\n**Subtractions Per Device:**\n";
+      for(let dev in subsByDev) {
+        report += "**" + dev + ":**\n";
+        for(let transcript in subsByDev[dev]) {
+          let flags = Array.from(subsByDev[dev][transcript]).join(")(");
+          report += '"' + transcript + '" (' + flags + ")\n";
+        }
+        report += "\n";
+      }
+      report += "**Overall Subtraction Totals:**\n";
+      report += "Total Short Utterances: " + total1W + "\n";
+      report += "Total System Replacement: " + totalSR + "\n";
+      report += "Total Duplicates: " + totalDUP + "\n";
+      report += "Total Subtractions: " + totalSubtractions + "\n";
+      return report;
+    }
+
+    // showReportPopup displays a modal popup with the report for manual copying.
+    function showReportPopup(reportText) {
+      let overlay = win.document.createElement("div");
+      overlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;";
+      let container = win.document.createElement("div");
+      container.style = "background:#fff;padding:20px;border-radius:8px;max-width:600px;max-height:80%;overflow:auto;";
+      container.innerHTML = "<h3>Report (copy manually)</h3>";
+      let txtArea = win.document.createElement("textarea");
+      txtArea.style = "width:100%;height:300px;";
+      txtArea.value = reportText;
+      container.appendChild(txtArea);
+      let closeBtn = win.document.createElement("button");
+      closeBtn.textContent = "Close";
+      closeBtn.style = "margin-top:10px;";
+      closeBtn.onclick = function(){ win.document.body.removeChild(overlay); };
+      container.appendChild(closeBtn);
+      overlay.appendChild(container);
+      win.document.body.appendChild(overlay);
     }
 
     win.document.getElementById("searchBox").oninput = function(e){
@@ -690,10 +630,10 @@ javascript:(function(){
       let rows = win.document.querySelectorAll("tr[id^='resp']");
       let anyHidden = [...rows].some(r => r.style.display==="none" || r.style.display==="");
       if(anyHidden){
-        rows.forEach(r=> r.style.display = "table-row");
+        rows.forEach(r => r.style.display = "table-row");
         expandAllBtn.textContent = "Collapse All";
       } else {
-        rows.forEach(r=> r.style.display = "none");
+        rows.forEach(r => r.style.display = "none");
         expandAllBtn.textContent = "Expand All";
       }
     };
@@ -703,25 +643,51 @@ javascript:(function(){
       if(navigator.clipboard && navigator.clipboard.writeText){
         navigator.clipboard.writeText(reportText).then(function(){
           alert("Report copied to clipboard.");
-        }, function(){
-          alert("Failed to copy report.");
+        }).catch(function(){
+          showReportPopup(reportText);
         });
       } else {
-        let temp = win.document.createElement("textarea");
-        temp.value = reportText;
-        win.document.body.appendChild(temp);
-        temp.select();
-        try{
-          document.execCommand('copy');
-          alert("Report copied to clipboard.");
-        } catch(e){ 
-          alert("Copy failed."); 
-        }
-        win.document.body.removeChild(temp);
+        showReportPopup(reportText);
       }
     };
 
     renderData();
     renderDeviceSettings();
+    win.renderDeviceSettings = renderDeviceSettings;
   } // end openFilteredPage
+
+  // ────────────────────────────────────────────── 
+  // DEVICE SETTINGS RENDERING (for the results window)
+  // ────────────────────────────────────────────── 
+  function renderDeviceSettings(){
+    // This function is now defined and called from within openFilteredPage.
+    // It renders the devices with their Assigned and Text Based Input checkboxes.
+    let winDeviceList = document.querySelector("#deviceList");
+    if(!winDeviceList) return;
+    winDeviceList.innerHTML = "";
+    for(let dev in deviceSettings){
+      let div = document.createElement("div");
+      div.className = "deviceSettings";
+      div.innerHTML = `<strong>${dev}</strong><br>
+        <label><input type="checkbox" class="assignChk" data-dev="${dev}" ${deviceSettings[dev].assigned ? "checked" : ""}> Assigned</label>
+        <label><input type="checkbox" class="textChk" data-dev="${dev}" ${deviceSettings[dev].textBased ? "checked" : ""}> Text Based Input</label>`;
+      winDeviceList.appendChild(div);
+    }
+    [...winDeviceList.querySelectorAll(".assignChk")].forEach(chk=>{
+      chk.onchange = function(e){
+        let d = e.target.getAttribute("data-dev");
+        deviceSettings[d].assigned = e.target.checked;
+        renderData();
+        renderDeviceSettings();
+      };
+    });
+    [...winDeviceList.querySelectorAll(".textChk")].forEach(chk=>{
+      chk.onchange = function(e){
+        let d = e.target.getAttribute("data-dev");
+        deviceSettings[d].textBased = e.target.checked;
+        renderData();
+        renderDeviceSettings();
+      };
+    });
+  }
 })();
