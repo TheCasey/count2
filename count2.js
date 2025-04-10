@@ -11,7 +11,7 @@ javascript:(function(){
   }
 
   // selectReactDate simulates user actions in the React Datepicker.
-  // dateInputId: the id of the input element ("date-start" or "date-end")
+  // dateInputId: the id of the date input element ("date-start" or "date-end")
   // targetDateStr: desired date in MM/DD/YYYY format, e.g., "03/22/2025"
   function selectReactDate(dateInputId, targetDateStr) {
     let parts = targetDateStr.split("/");
@@ -63,9 +63,10 @@ javascript:(function(){
     }, 500);
   }
 
-  // setPageDateFilters simulates clicks to expose the date selectors and then calls selectReactDate sequentially.
+  // setPageDateFilters simulates the clicks to expose and select the custom date range.
+  // It clicks the filter-menu, then the date filter menu, then the custom option,
+  // then selects the start and (after 2 sec) the end date.
   function setPageDateFilters(startDate, endDate) {
-    // Click filter-menu to expose filters.
     let filterMenuBtn = document.querySelector("#filter-menu button");
     if(filterMenuBtn) {
       filterMenuBtn.click();
@@ -74,7 +75,6 @@ javascript:(function(){
       console.warn("Filter-menu button not found.");
     }
     setTimeout(function(){
-      // Click the date filter menu button.
       let dateFilterBtn = document.querySelector("div.filter-by-date-menu button");
       if(dateFilterBtn) {
         dateFilterBtn.click();
@@ -83,7 +83,6 @@ javascript:(function(){
         console.warn("Date filter menu button not found.");
       }
       setTimeout(function(){
-        // Click the custom date range option.
         let customOption = document.querySelector("div.filter-options-list button");
         if(customOption) {
           customOption.click();
@@ -92,7 +91,7 @@ javascript:(function(){
           console.warn("Custom date option not found.");
         }
         setTimeout(function(){
-          // Now the date inputs should be exposed.
+          // Now the date inputs should be visible.
           selectReactDate("date-start", startDate);
           setTimeout(function(){
             selectReactDate("date-end", endDate);
@@ -118,9 +117,9 @@ javascript:(function(){
       u++;
       let fullMsg = document.querySelector(".full-width-message");
       if(fullMsg) {
-        fullMsg.scrollIntoView({ behavior:"smooth", block:"center" });
+        fullMsg.scrollIntoView({ behavior: "smooth", block: "center" });
       } else {
-        window.scrollBy({ top: innerHeight, behavior:"smooth" });
+        window.scrollBy({ top: innerHeight, behavior: "smooth" });
       }
       let t = document.body.scrollHeight;
       s = (t === p) ? s + 1 : 0;
@@ -137,7 +136,7 @@ javascript:(function(){
     }, 500);
   }
 
-  // Reformat an ISO date (YYYY-MM-DD) to MM/DD/YYYY.
+  // Reformat ISO date (YYYY-MM-DD) to MM/DD/YYYY.
   function reformatDate(isoDate) {
     let parts = isoDate.split("-");
     return parts[1] + "/" + parts[2] + "/" + parts[0];
@@ -209,7 +208,7 @@ javascript:(function(){
     document.getElementById("htmlBtn").onclick = openFilteredPage;
   })();
 
-  // getTimestamp converts the provided date/time info into a timestamp.
+  // getTimestamp converts the date/time info into a timestamp.
   function getTimestamp(dateVal, hourVal, minVal, ampm) {
     let h = parseInt(hourVal,10);
     let m = parseInt(minVal,10);
@@ -219,9 +218,7 @@ javascript:(function(){
     return new Date(dtStr).getTime();
   }
 
-  // fetchUtterances handles the main flow: it reads the UI date values, converts them,
-  // exposes the page's date selectors and selects the desired dates,
-  // starts autoscrolling, waits for content to load, then fetches history records.
+  // fetchUtterances gets the UI dates, exposes the date selectors (and picks dates), starts autoscroll, waits, then fetches history.
   async function fetchUtterances(){
     let startDateVal = document.getElementById("startDate").value;
     let endDateVal = document.getElementById("endDate").value;
@@ -232,11 +229,9 @@ javascript:(function(){
     let startDateFormatted = reformatDate(startDateVal);
     let endDateFormatted = reformatDate(endDateVal);
     
-    // Expose and set the date selectors.
+    // Expose the date selectors and select the dates sequentially.
     setPageDateFilters(startDateFormatted, endDateFormatted);
-    // Begin autoscrolling.
     autoScrollPage();
-    // Wait for the page to update.
     await new Promise(r => setTimeout(r,3000));
     
     let startHour = document.getElementById("startHour").value;
@@ -248,7 +243,7 @@ javascript:(function(){
     
     let startTs = getTimestamp(startDateVal, startHour, startMin, startAMPM);
     let endTs = getTimestamp(endDateVal, endHour, endMin, endAMPM);
-    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
+    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{ timeZone:"America/New_York" })}\nEnd: ${new Date(endTs).toLocaleString("en-US",{ timeZone:"America/New_York" })}?`)){
       return;
     }
     let apiUrl = `https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=${startTs}&endTime=${endTs}&disableGlobalNav=false`;
@@ -275,8 +270,6 @@ javascript:(function(){
   // ────────────────────────────────────────────── 
   // UTTERANCE PROCESSING & UI RENDERING
   // ────────────────────────────────────────────── 
-
-  // openFilteredPage opens a new window with the interactive summary.
   function openFilteredPage(){
     let win = window.open("", "_blank");
     win.document.write(`<!DOCTYPE html>
@@ -328,11 +321,9 @@ javascript:(function(){
     win.document.close();
 
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
-
-    // Use the same global captured deviceSettings and records.
     let deviceSettings = {};
     records.forEach(r => { if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false }; });
-    const wakeWords = ["hey alexa","ok alexa","alexa","echo","computer","amazon"];
+    const wakeWords = ["hey alexa", "ok alexa", "alexa", "echo", "computer", "amazon"];
 
     function processRecordFlags(){
       let deviceLastTranscript = {};
@@ -374,13 +365,13 @@ javascript:(function(){
         let type = r.utteranceType || r.intent || "";
         let isRoutine = type === "ROUTINES_OR_TAP_TO_ALEXA";
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(deviceSettings[dev] === undefined){ deviceSettings[dev] = { assigned:true, textBased:false }; }
+        if(deviceSettings[dev] === undefined){ deviceSettings[dev] = { assigned: true, textBased: false }; }
         if(type !== "GENERAL"){
           if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){
             if(r._activeFlags.includes("1W")){
               r._activeFlags.push("SR");
               r._overrides.SR = true;
-            } else {
+            } else { 
               r._activeFlags.push("SR");
             }
           }
@@ -404,11 +395,11 @@ javascript:(function(){
       let currentFilter = deviceFilter.value;
       let visibleRecords = records.filter(r => {
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter !== ""){ return dev === currentFilter; }
-        else { return deviceSettings[dev] && deviceSettings[dev].assigned; }
+        if(currentFilter !== "") return dev === currentFilter;
+        else return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
       let totalUtterances = visibleRecords.length;
-      let wwCounts = {}, subCounts = { "1W":0, "SR":0, "DUP":0 };
+      let wwCounts = {}, subCounts = { "1W": 0, "SR": 0, "DUP": 0 };
       let deviceCount = {}, dailyCount = {};
       let firstTs = null, lastTs = null;
       visibleRecords.forEach((r, idx) => {
@@ -480,23 +471,24 @@ javascript:(function(){
       `;
       win.document.getElementById("summary").innerHTML = summaryHTML;
 
-      // Preserve current selection if possible.
-      let currentVal = deviceFilter.value;
-      deviceFilter.innerHTML = `<option value="">All Devices</option>`;
+      // Rebuild device filter dropdown while preserving selection.
+      let deviceFilterEl = win.document.getElementById("deviceFilter");
+      let currentVal = deviceFilterEl.value;
+      deviceFilterEl.innerHTML = `<option value="">All Devices</option>`;
       Object.keys(deviceSettings).forEach(dev => {
         if(deviceSettings[dev].assigned) {
           let opt = win.document.createElement("option");
           opt.value = dev;
           opt.textContent = dev;
-          deviceFilter.appendChild(opt);
+          deviceFilterEl.appendChild(opt);
         }
       });
-      if(currentVal && [...deviceFilter.options].some(opt => opt.value === currentVal)) {
-        deviceFilter.value = currentVal;
+      if(currentVal && [...deviceFilterEl.options].some(opt => opt.value === currentVal)){
+        deviceFilterEl.value = currentVal;
       } else {
-        deviceFilter.value = "";
+        deviceFilterEl.value = "";
       }
-
+      
       win.document.querySelectorAll(".viewBtn").forEach(btn=>{
         btn.addEventListener("click", function(){
           let cat = btn.getAttribute("data-cat");
@@ -505,50 +497,54 @@ javascript:(function(){
       });
     }
 
-    // generateReport builds a plain text report using Markdown-style bold headings.
-    // It only includes devices that are assigned in the current filter.
+    // generateReport builds the plain text report with Markdown-style bold headings.
+    // It includes only devices assigned in the current filtered view.
     function generateReport(){
-      let deviceFilter = win.document.getElementById("deviceFilter");
-      let currentFilter = deviceFilter.value;
-      let visibleRecords = records.filter(r=>{
+      let deviceFilterEl = win.document.getElementById("deviceFilter");
+      let currentFilter = deviceFilterEl.value;
+      let visibleRecords = records.filter(r => {
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter!=="") return dev===currentFilter;
-        else return deviceSettings[dev] && deviceSettings[dev].assigned;
+        if(currentFilter !== "")
+          return dev === currentFilter;
+        else
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
-      if(visibleRecords.length===0) return "No records available for report.";
+      if(visibleRecords.length === 0) return "No records available for report.";
       
+      // Device Overview.
       let deviceCount = {};
-      visibleRecords.forEach(r=>{
+      visibleRecords.forEach(r => {
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
         deviceCount[dev] = (deviceCount[dev] || 0) + 1;
       });
       
+      // Daily Overview and first/last valid.
       let dailyCount = {};
       let firstTs = null, lastTs = null;
-      visibleRecords.forEach(r=>{
+      visibleRecords.forEach(r => {
         let d = et(r.timestamp).split(",")[0];
         dailyCount[d] = (dailyCount[d] || 0) + 1;
         if(!firstTs || r.timestamp < firstTs) firstTs = r.timestamp;
         if(!lastTs || r.timestamp > lastTs) lastTs = r.timestamp;
       });
       
+      // Wake Word Usage.
       let wwCounts = {};
-      visibleRecords.forEach(r=>{
+      visibleRecords.forEach(r => {
         if(r._activeFlags.includes("WW") && r._detectedWW) {
           wwCounts[r._detectedWW] = (wwCounts[r._detectedWW] || 0) + 1;
         }
       });
       
+      // Subtractions Per Device.
       let subsByDev = {};
-      visibleRecords.forEach(r=>{
+      visibleRecords.forEach(r => {
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
         let flags = r._activeFlags.filter(f => f==="1W" || f==="SR" || f==="DUP" || f.indexOf("DUP") > -1);
         if(flags.length > 0) {
           if(!subsByDev[dev]) subsByDev[dev] = {};
           let transcript = r._transcript || "[No Transcript]";
-          if(!subsByDev[dev][transcript]) {
-            subsByDev[dev][transcript] = new Set();
-          }
+          if(!subsByDev[dev][transcript]) subsByDev[dev][transcript] = new Set();
           flags.forEach(f => subsByDev[dev][transcript].add(f));
         }
       });
@@ -592,7 +588,7 @@ javascript:(function(){
       return report;
     }
 
-    // If clipboard copying fails, show a modal popup with the report for manual copying.
+    // If clipboard copy fails, show a modal popup with the report.
     function showReportPopup(reportText) {
       let overlay = win.document.createElement("div");
       overlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;";
@@ -657,32 +653,37 @@ javascript:(function(){
   } // end openFilteredPage
 
   // ────────────────────────────────────────────── 
-  // DEVICE SETTINGS RENDERING
+  // DEVICE SETTINGS RENDERING FOR THE RESULTS WINDOW
   // ────────────────────────────────────────────── 
   function renderDeviceSettings(){
-    // This function is called from openFilteredPage,
-    // so it uses the "deviceSettings" variable from that scope.
-    let winDeviceList = document.querySelector("body").querySelector("#deviceList");
+    // Here we use the new window's document.
+    // Since openFilteredPage created a new window and defines a local deviceSettings variable,
+    // we assume here that deviceSettings is accessible from openFilteredPage's scope.
+    // To ensure we reference the correct document, we use win.document.
+    let winDeviceList = window.open("", "_blank").document.querySelector("#deviceList");
+    // If winDeviceList is not found this way, then we try to reference it via our current window
+    // but ideally, renderDeviceSettings() should be called in the context of the new window.
+    if(!winDeviceList) {
+      winDeviceList = document.querySelector("#deviceList");
+    }
     if(!winDeviceList) return;
     winDeviceList.innerHTML = "";
-    // deviceSettings is defined in openFilteredPage's scope.
-    // We'll assume it is globally accessible within that function.
     for(let dev in deviceSettings){
-      let div = document.createElement("div");
+      let div = (typeof winDeviceList.ownerDocument !== "undefined") ? winDeviceList.ownerDocument.createElement("div") : document.createElement("div");
       div.className = "deviceSettings";
       div.innerHTML = `<strong>${dev}</strong><br>
         <label><input type="checkbox" class="assignChk" data-dev="${dev}" ${deviceSettings[dev].assigned ? "checked" : ""}> Assigned</label>
         <label><input type="checkbox" class="textChk" data-dev="${dev}" ${deviceSettings[dev].textBased ? "checked" : ""}> Text Based Input</label>`;
       winDeviceList.appendChild(div);
     }
-    [...document.querySelectorAll(".assignChk")].forEach(chk => {
+    [...winDeviceList.querySelectorAll(".assignChk")].forEach(chk=>{
       chk.onchange = function(e){
         let d = e.target.getAttribute("data-dev");
         deviceSettings[d].assigned = e.target.checked;
-        openFilteredPage(); // Rerender page.
+        openFilteredPage();
       };
     });
-    [...document.querySelectorAll(".textChk")].forEach(chk => {
+    [...winDeviceList.querySelectorAll(".textChk")].forEach(chk=>{
       chk.onchange = function(e){
         let d = e.target.getAttribute("data-dev");
         deviceSettings[d].textBased = e.target.checked;
