@@ -1,5 +1,112 @@
 javascript:(function(){
   // ────────────────────────────────────────────── 
+  // HELPER FUNCTIONS FOR REACT DATEPICKER & AUTO-SCROLLING
+  // ────────────────────────────────────────────── 
+
+  // Converts a number to an ordinal string (e.g., 1 -> "1st", 2 -> "2nd").
+  function getOrdinal(n) {
+    let s = ["th", "st", "nd", "rd"],
+        v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  // Simulate user interactions to select a date in a React Datepicker.
+  // dateInputId: the id of the input element that triggers the datepicker (e.g., "date-start" or "date-end").
+  // targetDateStr: desired date in MM/DD/YYYY format (e.g., "04/10/2025").
+  function selectReactDate(dateInputId, targetDateStr) {
+    let parts = targetDateStr.split("/");
+    if(parts.length !== 3) {
+      console.error("Target date must be in MM/DD/YYYY format");
+      return;
+    }
+    let targetMonth = parseInt(parts[0], 10) - 1; // zero-based month
+    let targetDay = parseInt(parts[1], 10);
+    let targetYear = parseInt(parts[2], 10);
+    
+    let input = document.getElementById(dateInputId);
+    if(!input) {
+      console.warn("Could not find date input with id: " + dateInputId);
+      return;
+    }
+    // Click to open the datepicker.
+    input.click();
+    console.log("Clicked date input " + dateInputId + " to open datepicker.");
+    
+    // After a short delay, set the month and year.
+    setTimeout(function(){
+      let monthSelect = document.querySelector(".react-datepicker__month-select");
+      let yearSelect = document.querySelector(".react-datepicker__year-select");
+      if(monthSelect && yearSelect) {
+        monthSelect.value = targetMonth;
+        monthSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        yearSelect.value = targetYear;
+        yearSelect.dispatchEvent(new Event("change", { bubbles: true }));
+        console.log("Set month to " + (targetMonth+1) + " and year to " + targetYear);
+      } else {
+        console.warn("Could not find the month/year dropdowns in datepicker.");
+      }
+      // Wait for the calendar to update, then select the day.
+      setTimeout(function(){
+        let targetOrdinal = getOrdinal(targetDay); // e.g., "10th"
+        let dayButtons = document.querySelectorAll(".react-datepicker__day");
+        let found = false;
+        dayButtons.forEach(function(btn) {
+          let aria = btn.getAttribute("aria-label");
+          if(aria && aria.indexOf(targetOrdinal) > -1 && aria.indexOf(String(targetYear)) > -1) {
+            btn.click();
+            console.log("Selected date: " + targetDateStr);
+            found = true;
+          }
+        });
+        if(!found) {
+          console.warn("Could not find a day button for " + targetDateStr);
+        }
+      }, 500);
+    }, 500);
+  }
+
+  // Enhanced autoscroll function (modeled after your example).
+  function autoScrollPage(){
+    let p = 0, s = 0, u = 0;
+    let stopBtn = document.createElement("button");
+    stopBtn.textContent = "Stop Scrolling";
+    stopBtn.style = "position:fixed;top:10px;right:10px;padding:10px;z-index:999999;background:red;color:#fff;border-radius:5px;cursor:pointer;";
+    stopBtn.onclick = function(){
+      clearInterval(scrollInterval);
+      stopBtn.remove();
+      console.log("Scrolling stopped by user.");
+    };
+    document.body.appendChild(stopBtn);
+    let scrollInterval = setInterval(function(){
+      u++;
+      let fullMsg = document.querySelector(".full-width-message");
+      if(fullMsg){
+        fullMsg.scrollIntoView({behavior:"smooth", block:"center"});
+      } else {
+        window.scrollBy({top: innerHeight, behavior:"smooth"});
+      }
+      let t = document.body.scrollHeight;
+      s = (t === p) ? s + 1 : 0;
+      p = t;
+      if(s >= 6 || u >= 200){
+        if(fullMsg && fullMsg.innerText.match(/loading more/i)){
+          s = 4; // Allow extra scrolling while loading.
+        } else {
+          clearInterval(scrollInterval);
+          stopBtn.remove();
+          console.log("Autoscroll finished.");
+        }
+      }
+    }, 500);
+  }
+  
+  // Convert ISO date (YYYY-MM-DD) to MM/DD/YYYY.
+  function reformatDate(isoDate) {
+    let parts = isoDate.split("-");
+    return parts[1] + "/" + parts[2] + "/" + parts[0];
+  }
+  
+  // ────────────────────────────────────────────── 
   // FETCH & XHR CAPTURE (existing functionality)
   // ────────────────────────────────────────────── 
   let capturedFetch = null;
@@ -75,22 +182,35 @@ javascript:(function(){
   }
   
   async function fetchUtterances(){
-    if(!capturedFetch){
-      alert("No fetch captured yet. Try opening Alexa history first.");
-      return;
-    }
+    // Grab dates from our UI panel.
     let startDateVal = document.getElementById("startDate").value;
-    let startHour = document.getElementById("startHour").value;
-    let startMin = document.getElementById("startMin").value;
-    let startAMPM = document.getElementById("startAMPM").value;
     let endDateVal = document.getElementById("endDate").value;
-    let endHour = document.getElementById("endHour").value;
-    let endMin = document.getElementById("endMin").value;
-    let endAMPM = document.getElementById("endAMPM").value;
-    if(!startDateVal || !endDateVal){
+    if(!startDateVal || !endDateVal) {
       alert("Please select both dates.");
       return;
     }
+    // Convert ISO date (YYYY-MM-DD) to MM/DD/YYYY.
+    let startDateFormatted = reformatDate(startDateVal);
+    let endDateFormatted = reformatDate(endDateVal);
+    
+    // Use the React Datepicker to select the dates on the page.
+    selectReactDate("date-start", startDateFormatted);
+    selectReactDate("date-end", endDateFormatted);
+    
+    // Start autoscrolling so that the page loads the audio logs.
+    autoScrollPage();
+    
+    // Wait a few seconds to ensure the page loads.
+    await new Promise(r => setTimeout(r, 3000));
+    
+    // Now proceed with the fetch logic.
+    let startHour = document.getElementById("startHour").value;
+    let startMin = document.getElementById("startMin").value;
+    let startAMPM = document.getElementById("startAMPM").value;
+    let endHour = document.getElementById("endHour").value;
+    let endMin = document.getElementById("endMin").value;
+    let endAMPM = document.getElementById("endAMPM").value;
+    
     let startTs = getTimestamp(startDateVal, startHour, startMin, startAMPM);
     let endTs = getTimestamp(endDateVal, endHour, endMin, endAMPM);
     if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
@@ -118,10 +238,9 @@ javascript:(function(){
   }
   
   // ────────────────────────────────────────────── 
-  // UTTERANCE PROCESSING & UI RENDERING
+  // UTTERANCE PROCESSING & UI RENDERING (existing code updated)
   // ────────────────────────────────────────────── 
   function openFilteredPage(){
-    // Open new window with two panels.
     let win = window.open("", "_blank");
     win.document.write(`<!DOCTYPE html>
 <html>
@@ -171,38 +290,26 @@ javascript:(function(){
 </html>`);
     win.document.close();
     
-    // Utility: convert timestamp to ET.
-    let et = ts => new Date(ts).toLocaleString("en-US", { timeZone: "America/New_York" });
-    
-    // Global device settings (by device name).
+    let et = ts => new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
     let deviceSettings = {};
-    // Initialize override container for each record.
-    records.forEach((r) => { 
-      if(!r._overrides) r._overrides = { WW: false, "1W": false, SR: false, DUP: false };
+    records.forEach(r => { 
+      if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
     });
+    const wakeWords = ["hey alexa","ok alexa","alexa","echo","computer","amazon"];
     
-    // Supported wake words (order matters: multi-word first)
-    const wakeWords = ["hey alexa", "ok alexa", "alexa", "echo", "computer", "amazon"];
-    
-    // Process flags for each record using current device settings and manual overrides.
     function processRecordFlags(){
-      let deviceLastTranscript = {}; // for duplicate detection
+      let deviceLastTranscript = {};
       records.forEach(r => {
-        r._activeFlags = []; // reset active flags
-        
-        // Extract transcript using multiple possible keys.
+        r._activeFlags = [];
         let transcript = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
-          let preferredTypes = ["customer-transcript", "data-warning-message", "replacement-text", "asr_replacement_text"];
-          for (let pref of preferredTypes){
+          let preferredTypes = ["customer-transcript","data-warning-message","replacement-text","asr_replacement_text"];
+          for(let pref of preferredTypes){
             let found = r.voiceHistoryRecordItems.find(item => {
               return item.recordItemType && item.recordItemType.toLowerCase() === pref &&
                      item.transcriptText && item.transcriptText.trim();
             });
-            if(found){
-              transcript = found.transcriptText.trim();
-              break;
-            }
+            if(found){ transcript = found.transcriptText.trim(); break; }
           }
           if(!transcript){
             let found = r.voiceHistoryRecordItems.find(item => {
@@ -213,82 +320,47 @@ javascript:(function(){
           }
         }
         r._transcript = transcript;
-        let lowerTxt = transcript.toLowerCase().trim().replace(/^[^a-z0-9]+/, "");
-        
-        // --- Wake Word Detection ---
+        let lowerTxt = transcript.toLowerCase().trim().replace(/^[^a-z0-9]+/,"");
         let detectedWW = null;
         for(let ww of wakeWords){
-          if(lowerTxt.startsWith(ww)){
-            detectedWW = ww;
-            break;
-          }
+          if(lowerTxt.startsWith(ww)){ detectedWW = ww; break; }
         }
         if(detectedWW && !r._overrides.WW){
           r._activeFlags.push("WW");
           r._detectedWW = detectedWW;
-        } else {
-          r._detectedWW = null;
-        }
-        
-        // --- Short Utterance Detection ---
+        } else { r._detectedWW = null; }
         let words = transcript.split(/\s+/).filter(w => w.length);
-        if(words.length <= 2 && !r._overrides["1W"]){
-          r._activeFlags.push("1W");
-        }
-        
-        // --- System Replacement ---
+        if(words.length <= 2 && !r._overrides["1W"]){ r._activeFlags.push("1W"); }
         let type = r.utteranceType || r.intent || "";
         let isRoutine = type === "ROUTINES_OR_TAP_TO_ALEXA";
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(deviceSettings[dev] === undefined) {
-          deviceSettings[dev] = { assigned: true, textBased: false };
-        }
+        if(deviceSettings[dev] === undefined){ deviceSettings[dev] = { assigned:true, textBased:false }; }
         if(type !== "GENERAL"){
-          if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){
-            r._activeFlags.push("SR");
-          }
+          if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){ r._activeFlags.push("SR"); }
         }
-        
-        // --- Duplicate Detection ---
         if(deviceLastTranscript[dev] && deviceLastTranscript[dev] === transcript && !r._overrides.DUP){
           if(r._activeFlags.includes("1W")){
             r._activeFlags.push("DUP(OVERRIDE)");
-          } else {
-            r._activeFlags.push("DUP");
-          }
-        } else {
-          deviceLastTranscript[dev] = transcript;
-        }
+          } else { r._activeFlags.push("DUP"); }
+        } else { deviceLastTranscript[dev] = transcript; }
       });
     }
     
-    // Render the main table and update summary counts based on the current view.
     function renderData(){
       processRecordFlags();
       let tbody = win.document.getElementById("tableBody");
       tbody.innerHTML = "";
       let deviceFilter = win.document.getElementById("deviceFilter");
       let currentFilter = deviceFilter.value;
-      
-      // Create a filtered records array based on the device filter and assignment:
       let visibleRecords = records.filter(r => {
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter !== ""){
-          return dev === currentFilter;
-        } else {
-          return deviceSettings[dev] && deviceSettings[dev].assigned;
-        }
+        if(currentFilter !== ""){ return dev === currentFilter; }
+        else { return deviceSettings[dev] && deviceSettings[dev].assigned; }
       });
-      
-      // Summary aggregates.
       let totalUtterances = visibleRecords.length;
-      let wwCounts = {};
-      let subCounts = { "1W":0, "SR":0, "DUP":0 };
-      let deviceCount = {};
-      let dailyCount = {};
+      let wwCounts = {}, subCounts = { "1W":0, "SR":0, "DUP":0 };
+      let deviceCount = {}, dailyCount = {};
       let firstTs = null, lastTs = null;
-      
-      // Build table rows from visibleRecords.
       visibleRecords.forEach((r, idx) => {
         let time = et(r.timestamp);
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
@@ -302,12 +374,10 @@ javascript:(function(){
           wwCounts[ww] = (wwCounts[ww] || 0) + 1;
         }
         r._activeFlags.forEach(flag => {
-          if(flag === "1W") subCounts["1W"]++;
-          if(flag === "SR") subCounts["SR"]++;
-          if(flag === "DUP") subCounts["DUP"]++;
+          if(flag==="1W") subCounts["1W"]++;
+          if(flag==="SR") subCounts["SR"]++;
+          if(flag==="DUP") subCounts["DUP"]++;
         });
-        
-        // Build row.
         let tr = win.document.createElement("tr");
         let flagsText = r._activeFlags.join(", ");
         let toggleCell = tr.insertCell(0);
@@ -315,22 +385,17 @@ javascript:(function(){
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
           let target = win.document.getElementById("resp" + idx);
-          if(target){
-            target.style.display = (target.style.display === "none" || target.style.display === "") ? "table-row" : "none";
-          }
+          if(target){ target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none"; }
         });
         tr.insertCell(1).innerText = et(r.timestamp);
         tr.insertCell(2).innerText = dev;
         tr.insertCell(3).innerText = r.utteranceType || r.intent || "";
         tr.insertCell(4).innerText = r._transcript;
         tbody.appendChild(tr);
-        
-        // Expandable row with Alexa Response.
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
-          // Look specifically for TTS_REPLACEMENT_TEXT as primary response,
-          // then fallback to ALEXA_RESPONSE.
-          const responseTypes = ["tts_replacement_text", "alexa_response"];
+          // For response, use TTS_REPLACEMENT_TEXT as primary; fallback to ALEXA_RESPONSE.
+          const responseTypes = ["tts_replacement_text","alexa_response"];
           for(let item of r.voiceHistoryRecordItems){
             if(item.recordItemType && responseTypes.includes(item.recordItemType.toLowerCase()) &&
                item.transcriptText && item.transcriptText.trim()){
@@ -345,8 +410,6 @@ javascript:(function(){
         tr2.innerHTML = `<td colspan='5' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
         tbody.appendChild(tr2);
       });
-      
-      // Build Summary HTML.
       let wwTotal = Object.values(wwCounts).reduce((a,b)=>a+b,0);
       let wwPct = totalUtterances ? Math.round(wwTotal/totalUtterances*100) : 0;
       let summaryHTML = `
@@ -367,16 +430,12 @@ javascript:(function(){
         </ul>
       `;
       win.document.getElementById("summary").innerHTML = summaryHTML;
-      
-      // Reattach viewBtn events.
       win.document.querySelectorAll(".viewBtn").forEach(btn=>{
         btn.addEventListener("click", function(){
           let cat = btn.getAttribute("data-cat");
           openOverrideModal(cat);
         });
       });
-      
-      // Update device filter options (only for assigned devices).
       deviceFilter.innerHTML = `<option value="">All Devices</option>`;
       Object.keys(deviceSettings).forEach(dev => {
         if(deviceSettings[dev].assigned){
@@ -388,26 +447,17 @@ javascript:(function(){
       });
     }
     
-    // Generate a text report based on the visible records.
     function generateReport(){
       let deviceFilter = win.document.getElementById("deviceFilter");
       let currentFilter = deviceFilter.value;
       let visibleRecords = records.filter(r => {
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter !== ""){
-          return dev === currentFilter;
-        } else {
-          return deviceSettings[dev] && deviceSettings[dev].assigned;
-        }
+        if(currentFilter!=="") return dev===currentFilter; else return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
-      if(visibleRecords.length === 0) return "No records available for report.";
-      
-      // Overview aggregations.
-      let deviceCount = {};
-      let dailyCount = {};
-      let subPerDevice = {}; // { device: { "1W":count, "SR":count, "DUP":count } }
+      if(visibleRecords.length===0) return "No records available for report.";
+      let deviceCount = {}, dailyCount = {}, subPerDevice = {};
       let firstTs = null, lastTs = null;
-      visibleRecords.forEach(r => {
+      visibleRecords.forEach(r=>{
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
         deviceCount[dev] = (deviceCount[dev] || 0) + 1;
         let d = et(r.timestamp).split(",")[0];
@@ -415,35 +465,28 @@ javascript:(function(){
         if(!firstTs || r.timestamp < firstTs) firstTs = r.timestamp;
         if(!lastTs || r.timestamp > lastTs) lastTs = r.timestamp;
         if(!subPerDevice[dev]) subPerDevice[dev] = { "1W":0, "SR":0, "DUP":0 };
-        r._activeFlags.forEach(flag => {
-          if(flag === "1W") subPerDevice[dev]["1W"]++;
-          if(flag === "SR") subPerDevice[dev]["SR"]++;
-          if(flag === "DUP") subPerDevice[dev]["DUP"]++;
+        r._activeFlags.forEach(flag=>{
+          if(flag==="1W") subPerDevice[dev]["1W"]++;
+          if(flag==="SR") subPerDevice[dev]["SR"]++;
+          if(flag==="DUP") subPerDevice[dev]["DUP"]++;
         });
       });
-      // Overall subtractions.
-      let total1W = Object.values(subPerDevice).reduce((acc, cur) => acc + (cur["1W"]||0), 0);
-      let totalSR = Object.values(subPerDevice).reduce((acc, cur) => acc + (cur["SR"]||0), 0);
-      let totalDUP = Object.values(subPerDevice).reduce((acc, cur) => acc + (cur["DUP"]||0), 0);
-      let totalSubs = total1W + totalSR + totalDUP;
-      
-      // Build report string.
+      let total1W = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["1W"]||0),0);
+      let totalSR = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["SR"]||0),0);
+      let totalDUP = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["DUP"]||0),0);
+      let totalSubs = total1W+totalSR+totalDUP;
       let report = "";
       report += "Device Overview:\n";
-      Object.entries(deviceCount).forEach(([dev, cnt]) => {
-        report += `${dev}: ${cnt}\n`;
-      });
+      Object.entries(deviceCount).forEach(([dev,cnt])=>{ report += `${dev}: ${cnt}\n`; });
       report += "\n";
       report += `First Valid: ${et(firstTs)}\n`;
       report += `Last Valid: ${et(lastTs)}\n`;
       report += "\n";
       report += "Daily Overview:\n";
-      Object.entries(dailyCount).forEach(([day, cnt]) => {
-        report += `${day}: ${cnt}\n`;
-      });
+      Object.entries(dailyCount).forEach(([day,cnt])=>{ report += `${day}: ${cnt}\n`; });
       report += "\n";
       report += "Subtractions Per Device:\n\n";
-      Object.entries(subPerDevice).forEach(([dev, subs]) => {
+      Object.entries(subPerDevice).forEach(([dev,subs])=>{
         report += `${dev}:\n`;
         report += `  Short Utterance: ${subs["1W"]}\n`;
         report += `  System Replacement: ${subs["SR"]}\n`;
@@ -457,9 +500,6 @@ javascript:(function(){
       return report;
     }
     
-    // ────────────────────────────────────────────── 
-    // DEVICE SETTINGS PANEL
-    // ────────────────────────────────────────────── 
     function renderDeviceSettings(){
       let deviceListDiv = win.document.getElementById("deviceList");
       deviceListDiv.innerHTML = "";
@@ -472,7 +512,7 @@ javascript:(function(){
         deviceListDiv.appendChild(div);
       });
       [...win.document.querySelectorAll(".assignChk")].forEach(chk=>{
-        chk.onchange = (e)=>{
+        chk.onchange = function(e){
           let d = e.target.getAttribute("data-dev");
           deviceSettings[d].assigned = e.target.checked;
           renderData();
@@ -480,7 +520,7 @@ javascript:(function(){
         };
       });
       [...win.document.querySelectorAll(".textChk")].forEach(chk=>{
-        chk.onchange = (e)=>{
+        chk.onchange = function(e){
           let d = e.target.getAttribute("data-dev");
           deviceSettings[d].textBased = e.target.checked;
           renderData();
@@ -489,9 +529,6 @@ javascript:(function(){
       });
     }
     
-    // ────────────────────────────────────────────── 
-    // OVERRIDE MODALS FOR SUBTRACTION FLAGS
-    // ────────────────────────────────────────────── 
     function openOverrideModal(category){
       let modalOverlay = win.document.createElement("div");
       modalOverlay.className = "modalOverlay";
@@ -513,57 +550,45 @@ javascript:(function(){
       let modalBody = modal.querySelector("#modalBody");
       let deviceFilter = win.document.getElementById("deviceFilter");
       let currentFilter = deviceFilter.value;
-      let visibleRecords = records.filter(r => {
+      let visibleRecords = records.filter(r=>{
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter !== ""){
-          return dev === currentFilter;
-        } else {
-          return deviceSettings[dev] && deviceSettings[dev].assigned;
-        }
+        if(currentFilter!=="") return dev===currentFilter; else return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
       
-      visibleRecords.forEach((r, i)=>{
+      visibleRecords.forEach((r,i)=>{
         if(r._activeFlags.includes(category) || r._overrides[category]){
           let tr = win.document.createElement("tr");
           tr.innerHTML = `<td>${et(r.timestamp)}</td>
-            <td>${(r.device && r.device.deviceName) || "Unknown"}</td>
+            <td>${(r.device && r.device.deviceName)||"Unknown"}</td>
             <td>${r._transcript}</td>
-            <td><input type="checkbox" data-i="${i}" data-cat="${category}" ${r._overrides[category] ? "checked" : ""}></td>`;
+            <td><input type="checkbox" data-i="${i}" data-cat="${category}" ${r._overrides[category]?"checked":""}></td>`;
           modalBody.appendChild(tr);
         }
       });
       
       [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
-        chk.onchange = (e)=>{
+        chk.onchange = function(e){
           let idx = e.target.getAttribute("data-i");
           let cat = e.target.getAttribute("data-cat");
           let visible = visibleRecords;
           let r = visible[idx];
-          if(r) {
-            r._overrides[cat] = e.target.checked;
-            renderData();
-          }
+          if(r) { r._overrides[cat] = e.target.checked; renderData(); }
         };
       });
       
-      modal.querySelector("#resetOverrides").onclick = ()=>{
-        visibleRecords.forEach(r=>{
-          r._overrides[category] = false;
-        });
+      modal.querySelector("#resetOverrides").onclick = function(){
+        visibleRecords.forEach(r=>{ r._overrides[category] = false; });
         renderData();
         [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
           chk.checked = false;
         });
       };
       
-      modal.querySelector(".closeModal").onclick = ()=>{
+      modal.querySelector(".closeModal").onclick = function(){
         win.document.body.removeChild(modalOverlay);
       };
     }
     
-    // ────────────────────────────────────────────── 
-    // EVENT HANDLERS & INITIAL RENDERING
-    // ────────────────────────────────────────────── 
     win.document.getElementById("searchBox").oninput = function(e){
       let val = e.target.value.toLowerCase();
       [...win.document.getElementById("tableBody").children].forEach(tr=>{
@@ -576,14 +601,12 @@ javascript:(function(){
       });
     };
     
-    win.document.getElementById("deviceFilter").onchange = ()=>{
-      renderData();
-    };
+    win.document.getElementById("deviceFilter").onchange = function(){ renderData(); };
     
     let expandAllBtn = win.document.getElementById("expandAll");
-    expandAllBtn.onclick = ()=>{
+    expandAllBtn.onclick = function(){
       let rows = win.document.querySelectorAll("tr[id^='resp']");
-      let anyHidden = [...rows].some(r => r.style.display === "none" || r.style.display === "");
+      let anyHidden = [...rows].some(r => r.style.display==="none" || r.style.display==="");
       if(anyHidden){
         rows.forEach(r=> r.style.display = "table-row");
         expandAllBtn.textContent = "Collapse All";
@@ -593,12 +616,12 @@ javascript:(function(){
       }
     };
     
-    win.document.getElementById("copyReportBtn").onclick = ()=>{
+    win.document.getElementById("copyReportBtn").onclick = function(){
       let reportText = generateReport();
       if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(reportText).then(()=>{
+        navigator.clipboard.writeText(reportText).then(function(){
           alert("Report copied to clipboard.");
-        }, ()=>{
+        }, function(){
           alert("Failed to copy report.");
         });
       } else {
