@@ -3,7 +3,7 @@ javascript:(function(){
   // HELPER FUNCTIONS FOR DATE SELECTION & AUTOSCROLLING
   // ────────────────────────────────────────────── 
 
-  // Convert a number to its ordinal string (e.g., 1 → "1st", 22 → "22nd").
+  // Convert a number to its ordinal string (e.g., 1 → "1st", 22 → "22nd")
   function getOrdinal(n) {
     let s = ["th", "st", "nd", "rd"],
         v = n % 100;
@@ -11,8 +11,8 @@ javascript:(function(){
   }
 
   // selectReactDate simulates user actions in the React Datepicker.
-  // dateInputId: the id of the input element ("date-start" or "date-end").
-  // targetDateStr: desired date in MM/DD/YYYY format (e.g., "03/22/2025").
+  // dateInputId: the id of the input element ("date-start" or "date-end")
+  // targetDateStr: desired date in MM/DD/YYYY format (e.g., "03/22/2025")
   function selectReactDate(dateInputId, targetDateStr) {
     let parts = targetDateStr.split("/");
     if(parts.length !== 3) {
@@ -24,7 +24,7 @@ javascript:(function(){
     let targetYear = parseInt(parts[2], 10);
     
     let input = document.getElementById(dateInputId);
-    if(!input) {
+    if (!input) {
       console.warn("Could not find date input with id: " + dateInputId);
       return;
     }
@@ -62,8 +62,8 @@ javascript:(function(){
     }, 500);
   }
 
-  // setPageDateFilters simulates the clicks needed to expose the custom date range fields
-  // and then selects the start and end dates sequentially.
+  // setPageDateFilters simulates clicks to expose the custom date range fields
+  // and then calls selectReactDate sequentially for start and end dates.
   function setPageDateFilters(startDate, endDate) {
     let filterMenuBtn = document.querySelector("#filter-menu button");
     if(filterMenuBtn) {
@@ -89,7 +89,7 @@ javascript:(function(){
           console.warn("Custom date option not found.");
         }
         setTimeout(function(){
-          // Now the date inputs should be exposed.
+          // Now the date inputs should be visible.
           selectReactDate("date-start", startDate);
           setTimeout(function(){
             selectReactDate("date-end", endDate);
@@ -99,7 +99,7 @@ javascript:(function(){
     }, 500);
   }
 
-  // Enhanced autoscroll function modeled on your example.
+  // Enhanced autoscroll function modeled on your sample.
   function autoScrollPage(){
     let p = 0, s = 0, u = 0;
     let stopBtn = document.createElement("button");
@@ -239,7 +239,7 @@ javascript:(function(){
     
     let startTs = getTimestamp(startDateVal, startHour, startMin, startAMPM);
     let endTs = getTimestamp(endDateVal, endHour, endMin, endAMPM);
-    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
+    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{ timeZone:"America/New_York" })}\nEnd: ${new Date(endTs).toLocaleString("en-US",{ timeZone:"America/New_York" })}?`)){
       return;
     }
     let apiUrl = `https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=${startTs}&endTime=${endTs}&disableGlobalNav=false`;
@@ -278,7 +278,7 @@ javascript:(function(){
       #rightPanel { width:70%; padding:10px; overflow:auto; }
       table { width:100%; margin-top:10px; border-collapse:collapse; }
       th, td { padding:4px; border:1px solid #ccc; font-size:13px; }
-      .modalOverlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; }
+      .modalOverlay { position:fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; }
       .modal { background:#fff; padding:20px; border-radius:8px; max-height:80vh; overflow:auto; width:80%; }
       .closeModal { float:right; cursor:pointer; font-size:18px; }
       .deviceSettings { margin-bottom:10px; padding:5px; border:1px solid #ccc; border-radius:6px; }
@@ -316,14 +316,11 @@ javascript:(function(){
 </html>`);
     win.document.close();
 
-    // Use win.document for all UI in the results window.
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
-    
-    // Define a deviceSettings variable local to this new window.
     let deviceSettings = {};
-    // Process records to build deviceSettings.
     records.forEach(r => {
-      if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
+      if(!r._overrides)
+        r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
     });
     const wakeWords = ["hey alexa", "ok alexa", "alexa", "echo", "computer", "amazon"];
 
@@ -350,7 +347,7 @@ javascript:(function(){
           }
         }
         r._transcript = transcript;
-        let lowerTxt = transcript.toLowerCase().trim().replace(/^[^a-z0-9]+/,"");
+        let lowerTxt = transcript.toLowerCase().trim().replace(/^[^a-z0-9]+/, "");
         let detectedWW = null;
         for(let ww of wakeWords){
           if(lowerTxt.startsWith(ww)){
@@ -367,7 +364,6 @@ javascript:(function(){
         let type = r.utteranceType || r.intent || "";
         let isRoutine = type === "ROUTINES_OR_TAP_TO_ALEXA";
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        // Build or update deviceSettings.
         if(deviceSettings[dev] === undefined){ deviceSettings[dev] = { assigned:true, textBased:false }; }
         if(type !== "GENERAL"){
           if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){
@@ -431,9 +427,7 @@ javascript:(function(){
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
           let target = win.document.getElementById("resp" + idx);
-          if(target){
-            target.style.display = (target.style.display==="none"||target.style.display==="") ? "table-row" : "none";
-          }
+          if(target){ target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none"; }
         });
         tr.insertCell(1).innerText = et(r.timestamp);
         tr.insertCell(2).innerText = dev;
@@ -478,7 +472,7 @@ javascript:(function(){
       `;
       win.document.getElementById("summary").innerHTML = summaryHTML;
 
-      // Rebuild device filter dropdown while preserving selection.
+      // Rebuild device filter dropdown and preserve selection.
       let deviceFilterEl = win.document.getElementById("deviceFilter");
       let currentVal = deviceFilterEl.value;
       deviceFilterEl.innerHTML = `<option value="">All Devices</option>`;
@@ -496,7 +490,6 @@ javascript:(function(){
         deviceFilterEl.value = "";
       }
       
-      // Attach view buttons events.
       win.document.querySelectorAll(".viewBtn").forEach(btn=>{
         btn.addEventListener("click", function(){
           let cat = btn.getAttribute("data-cat");
@@ -505,17 +498,19 @@ javascript:(function(){
       });
     }
 
-    // generateReport builds the plain-text report with Markdown bold headings,
-    // including only devices assigned in the current filtered view.
+    // generateReport builds a plain-text report with Markdown bold headings.
+    // It includes only devices in the current filtered view.
     function generateReport(){
-      let deviceFilterEl = win.document.getElementById("deviceFilter");
-      let currentFilter = deviceFilterEl.value;
+      const df = win.document.getElementById("deviceFilter");
+      let currentFilter = df.value;
       let visibleRecords = records.filter(r=>{
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter !== "") return dev === currentFilter;
-        else return deviceSettings[dev] && deviceSettings[dev].assigned;
+        if(currentFilter !== "")
+          return dev === currentFilter;
+        else
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
       });
-      if(visibleRecords.length===0) return "No records available for report.";
+      if(visibleRecords.length === 0) return "No records available for report.";
       
       let deviceCount = {};
       visibleRecords.forEach(r=>{
@@ -590,67 +585,26 @@ javascript:(function(){
       return report;
     }
 
-    // openOverrideModal shows a modal with a table of records for a given subtraction category.
-    function openOverrideModal(category) {
-      let modalOverlay = win.document.createElement("div");
-      modalOverlay.className = "modalOverlay";
-      let modal = win.document.createElement("div");
-      modal.className = "modal";
-      modal.innerHTML = `<span class="closeModal">✖</span>
-        <h3>Override for ${category}</h3>
-        <table>
-          <thead>
-            <tr><th>Time (ET)</th><th>Device</th><th>Transcript</th><th>Override?</th></tr>
-          </thead>
-          <tbody id="modalBody"></tbody>
-        </table>
-        <button id="resetOverrides">Reset Overrides</button>
-      `;
-      modalOverlay.appendChild(modal);
-      win.document.body.appendChild(modalOverlay);
-
-      let modalBody = modal.querySelector("#modalBody");
-      let deviceFilterEl = win.document.getElementById("deviceFilter");
-      let currentFilter = deviceFilterEl.value;
-      let visibleRecords = records.filter(r=>{
-        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter!=="") return dev === currentFilter; else return deviceSettings[dev] && deviceSettings[dev].assigned;
-      });
-      visibleRecords.forEach((r, i)=>{
-        if(r._activeFlags.includes(category) || r._overrides[category]){
-          let tr = win.document.createElement("tr");
-          tr.innerHTML = `<td>${et(r.timestamp)}</td>
-            <td>${(r.device && r.device.deviceName) || "Unknown"}</td>
-            <td>${r._transcript}</td>
-            <td><input type="checkbox" data-i="${i}" data-cat="${category}" ${r._overrides[category] ? "checked" : ""}></td>`;
-          modalBody.appendChild(tr);
-        }
-      });
-
-      [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
-        chk.onchange = function(e){
-          let idx = e.target.getAttribute("data-i");
-          let cat = e.target.getAttribute("data-cat");
-          let visible = visibleRecords;
-          let r = visible[idx];
-          if(r) { r._overrides[cat] = e.target.checked; renderData(); }
-        };
-      });
-      
-      modal.querySelector("#resetOverrides").onclick = function(){
-        visibleRecords.forEach(r=>{ r._overrides[category] = false; });
-        renderData();
-        [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
-          chk.checked = false;
-        });
-      };
-      
-      modal.querySelector(".closeModal").onclick = function(){
-        win.document.body.removeChild(modalOverlay);
-      };
+    // If clipboard copy fails, show a popup with the report for manual copying.
+    function showReportPopup(reportText) {
+      let overlay = win.document.createElement("div");
+      overlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;";
+      let container = win.document.createElement("div");
+      container.style = "background:#fff;padding:20px;border-radius:8px;max-width:600px;max-height:80%;overflow:auto;";
+      container.innerHTML = "<h3>Report (copy manually)</h3>";
+      let txtArea = win.document.createElement("textarea");
+      txtArea.style = "width:100%;height:300px;";
+      txtArea.value = reportText;
+      container.appendChild(txtArea);
+      let closeBtn = win.document.createElement("button");
+      closeBtn.textContent = "Close";
+      closeBtn.style = "margin-top:10px;";
+      closeBtn.onclick = function(){ win.document.body.removeChild(overlay); };
+      container.appendChild(closeBtn);
+      overlay.appendChild(container);
+      win.document.body.appendChild(overlay);
     }
 
-    // Attach event handler for search box.
     win.document.getElementById("searchBox").oninput = function(e){
       let val = e.target.value.toLowerCase();
       [...win.document.getElementById("tableBody").children].forEach(tr=>{
@@ -680,7 +634,7 @@ javascript:(function(){
 
     win.document.getElementById("copyReportBtn").onclick = function(){
       let reportText = generateReport();
-      if(navigator.clipboard && navigator.clipboard.writeText) {
+      if(navigator.clipboard && navigator.clipboard.writeText){
         navigator.clipboard.writeText(reportText).then(function(){
           alert("Report copied to clipboard.");
         }).catch(function(){
@@ -691,22 +645,40 @@ javascript:(function(){
       }
     };
 
-    // Initial rendering.
     renderData();
     renderDeviceSettings();
-
-    // Expose renderDeviceSettings within openFilteredPage's scope so our event handlers can call it.
     win.renderDeviceSettings = renderDeviceSettings;
   }
 
-  // ────────────────────────────────────────────── 
-  // DEVICE SETTINGS RENDERING (for the results window)
-  // ────────────────────────────────────────────── 
-  // This function is defined outside openFilteredPage for clarity but will be called
-  // within the results window context.
+  // Device settings rendering function for the results window.
   function renderDeviceSettings(){
-    // Note: In openFilteredPage, renderDeviceSettings() is defined locally.
-    // If needed here, simply call win.renderDeviceSettings() from the results window.
-    // (This definition serves as a placeholder if the environment needs it.)
+    // Called from openFilteredPage's context; use win.document for the results window.
+    // Here we assume that the results window (opened via openFilteredPage) is still available
+    // and its document contains the #deviceList element.
+    let winDeviceList = document.querySelector("#deviceList");
+    if(!winDeviceList) return;
+    winDeviceList.innerHTML = "";
+    for(let dev in deviceSettings){
+      let div = document.createElement("div");
+      div.className = "deviceSettings";
+      div.innerHTML = `<strong>${dev}</strong><br>
+        <label><input type="checkbox" class="assignChk" data-dev="${dev}" ${deviceSettings[dev].assigned ? "checked" : ""}> Assigned</label>
+        <label><input type="checkbox" class="textChk" data-dev="${dev}" ${deviceSettings[dev].textBased ? "checked" : ""}> Text Based Input</label>`;
+      winDeviceList.appendChild(div);
+    }
+    [...winDeviceList.querySelectorAll(".assignChk")].forEach(chk=>{
+      chk.onchange = function(e){
+        let d = e.target.getAttribute("data-dev");
+        deviceSettings[d].assigned = e.target.checked;
+        openFilteredPage();
+      };
+    });
+    [...winDeviceList.querySelectorAll(".textChk")].forEach(chk=>{
+      chk.onchange = function(e){
+        let d = e.target.getAttribute("data-dev");
+        deviceSettings[d].textBased = e.target.checked;
+        openFilteredPage();
+      };
+    });
   }
 })();
