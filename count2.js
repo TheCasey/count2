@@ -44,7 +44,6 @@ javascript:(function(){
   (function createUIPanel(){
     let panel = document.createElement("div");
     panel.style = "position:fixed;top:10px;left:10px;z-index:99999;background:#fff;padding:12px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.4);font-family:sans-serif;width:330px;font-size:14px;";
-    // Added a Copy Report button in the left panel HTML.
     panel.innerHTML = `
       <b>🗓️ Custom Alexa Utterance Export</b><br><br>
       <label>Start Date (ET):</label><br>
@@ -250,7 +249,6 @@ javascript:(function(){
         
         // --- Duplicate Detection ---
         if(deviceLastTranscript[dev] && deviceLastTranscript[dev] === transcript && !r._overrides.DUP){
-          // If already flagged as short utterance, mark duplicate as overridden.
           if(r._activeFlags.includes("1W")){
             r._activeFlags.push("DUP(OVERRIDE)");
           } else {
@@ -301,7 +299,6 @@ javascript:(function(){
           let ww = r._detectedWW;
           wwCounts[ww] = (wwCounts[ww] || 0) + 1;
         }
-        // Count subtractions – count DUP only if it is exactly "DUP"
         r._activeFlags.forEach(flag => {
           if(flag === "1W") subCounts["1W"]++;
           if(flag === "SR") subCounts["SR"]++;
@@ -312,7 +309,7 @@ javascript:(function(){
         let tr = win.document.createElement("tr");
         let flagsText = r._activeFlags.join(", ");
         let toggleCell = tr.insertCell(0);
-        toggleCell.innerHTML = `<button class='toggle' data-idx='${r._idx || idx}'>▶</button> ${flagsText}`;
+        toggleCell.innerHTML = `<button class='toggle' data-idx='${idx}'>▶</button> ${flagsText}`;
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
           let target = win.document.getElementById("resp" + idx);
@@ -326,11 +323,13 @@ javascript:(function(){
         tr.insertCell(4).innerText = r._transcript;
         tbody.appendChild(tr);
         
-        // Expandable row for Alexa response.
+        // Expandable row with Alexa Response.
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
+          const responseTypes = ["tts_replacement_text","alexa_response","asr_replacement_text"];
           for(let item of r.voiceHistoryRecordItems){
-            if(item.recordItemType && item.recordItemType.toLowerCase() === "alexa_response" && item.transcriptText && item.transcriptText.trim()){
+            if(item.recordItemType && responseTypes.includes(item.recordItemType.toLowerCase()) &&
+               item.transcriptText && item.transcriptText.trim()){
               response = item.transcriptText.trim();
               break;
             }
@@ -508,7 +507,6 @@ javascript:(function(){
       win.document.body.appendChild(modalOverlay);
       
       let modalBody = modal.querySelector("#modalBody");
-      // Only include visible records based on the current filter.
       let deviceFilter = win.document.getElementById("deviceFilter");
       let currentFilter = deviceFilter.value;
       let visibleRecords = records.filter(r => {
@@ -535,7 +533,6 @@ javascript:(function(){
         chk.onchange = (e)=>{
           let idx = e.target.getAttribute("data-i");
           let cat = e.target.getAttribute("data-cat");
-          // Apply override for the visible record (this example uses the index in the visible set)
           let visible = visibleRecords;
           let r = visible[idx];
           if(r) {
@@ -563,7 +560,6 @@ javascript:(function(){
     // ────────────────────────────────────────────── 
     // EVENT HANDLERS & INITIAL RENDERING
     // ────────────────────────────────────────────── 
-    // Attach search listener.
     win.document.getElementById("searchBox").oninput = function(e){
       let val = e.target.value.toLowerCase();
       [...win.document.getElementById("tableBody").children].forEach(tr=>{
@@ -576,12 +572,10 @@ javascript:(function(){
       });
     };
     
-    // Device filter listener.
     win.document.getElementById("deviceFilter").onchange = ()=>{
       renderData();
     };
     
-    // Expand/Collapse All toggle.
     let expandAllBtn = win.document.getElementById("expandAll");
     expandAllBtn.onclick = ()=>{
       let rows = win.document.querySelectorAll("tr[id^='resp']");
@@ -595,17 +589,29 @@ javascript:(function(){
       }
     };
     
-    // Attach Copy Report button event.
     win.document.getElementById("copyReportBtn").onclick = ()=>{
       let reportText = generateReport();
-      navigator.clipboard.writeText(reportText).then(()=>{
-        alert("Report copied to clipboard.");
-      }, ()=>{
-        alert("Failed to copy report.");
-      });
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(reportText).then(()=>{
+          alert("Report copied to clipboard.");
+        }, ()=>{
+          alert("Failed to copy report.");
+        });
+      } else {
+        let temp = win.document.createElement("textarea");
+        temp.value = reportText;
+        win.document.body.appendChild(temp);
+        temp.select();
+        try { 
+          document.execCommand('copy'); 
+          alert("Report copied to clipboard.");
+        } catch(e) { 
+          alert("Copy failed."); 
+        }
+        win.document.body.removeChild(temp);
+      }
     };
     
-    // Initial rendering.
     renderData();
     renderDeviceSettings();
   } // end openFilteredPage
