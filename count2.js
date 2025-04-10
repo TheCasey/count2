@@ -3,36 +3,36 @@ javascript:(function(){
   // HELPER FUNCTIONS FOR REACT DATEPICKER & AUTO-SCROLLING
   // ────────────────────────────────────────────── 
 
-  // Converts a number to an ordinal string (e.g., 1 -> "1st", 2 -> "2nd").
+  // Convert a number to its ordinal string (e.g., 1 -> "1st", 2 -> "2nd")
   function getOrdinal(n) {
-    let s = ["th", "st", "nd", "rd"],
+    let s = ["th","st","nd","rd"],
         v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
-  // Simulate user interactions to select a date in a React Datepicker.
-  // dateInputId: the id of the input element that triggers the datepicker (e.g., "date-start" or "date-end").
-  // targetDateStr: desired date in MM/DD/YYYY format (e.g., "04/10/2025").
+  // selectReactDate simulates user actions to select a date in the React Datepicker.
+  // dateInputId: the id of the input element that triggers the datepicker (e.g., "date-start" or "date-end")
+  // targetDateStr: desired date in MM/DD/YYYY format (e.g., "03/22/2025")
   function selectReactDate(dateInputId, targetDateStr) {
     let parts = targetDateStr.split("/");
     if(parts.length !== 3) {
       console.error("Target date must be in MM/DD/YYYY format");
       return;
     }
-    let targetMonth = parseInt(parts[0], 10) - 1; // zero-based month
-    let targetDay = parseInt(parts[1], 10);
-    let targetYear = parseInt(parts[2], 10);
+    let targetMonth = parseInt(parts[0],10) - 1; // zero-based
+    let targetDay = parseInt(parts[1],10);
+    let targetYear = parseInt(parts[2],10);
     
     let input = document.getElementById(dateInputId);
     if(!input) {
       console.warn("Could not find date input with id: " + dateInputId);
       return;
     }
-    // Click to open the datepicker.
+    // Click the input to open the React Datepicker
     input.click();
     console.log("Clicked date input " + dateInputId + " to open datepicker.");
     
-    // After a short delay, set the month and year.
+    // After a short delay, set the month and year dropdowns.
     setTimeout(function(){
       let monthSelect = document.querySelector(".react-datepicker__month-select");
       let yearSelect = document.querySelector(".react-datepicker__year-select");
@@ -43,15 +43,16 @@ javascript:(function(){
         yearSelect.dispatchEvent(new Event("change", { bubbles: true }));
         console.log("Set month to " + (targetMonth+1) + " and year to " + targetYear);
       } else {
-        console.warn("Could not find the month/year dropdowns in datepicker.");
+        console.warn("Could not find the month/year dropdown elements in datepicker.");
       }
-      // Wait for the calendar to update, then select the day.
+      // Wait for calendar update, then select the target day.
       setTimeout(function(){
-        let targetOrdinal = getOrdinal(targetDay); // e.g., "10th"
+        let targetOrdinal = getOrdinal(targetDay); // e.g., "22nd"
         let dayButtons = document.querySelectorAll(".react-datepicker__day");
         let found = false;
-        dayButtons.forEach(function(btn) {
+        dayButtons.forEach(function(btn){
           let aria = btn.getAttribute("aria-label");
+          // The aria-label might read: "Choose Thursday, March 22nd, 2025"
           if(aria && aria.indexOf(targetOrdinal) > -1 && aria.indexOf(String(targetYear)) > -1) {
             btn.click();
             console.log("Selected date: " + targetDateStr);
@@ -65,7 +66,7 @@ javascript:(function(){
     }, 500);
   }
 
-  // Enhanced autoscroll function (modeled after your example).
+  // Enhanced autoscroll function (based on your provided example)
   function autoScrollPage(){
     let p = 0, s = 0, u = 0;
     let stopBtn = document.createElement("button");
@@ -81,9 +82,9 @@ javascript:(function(){
       u++;
       let fullMsg = document.querySelector(".full-width-message");
       if(fullMsg){
-        fullMsg.scrollIntoView({behavior:"smooth", block:"center"});
+        fullMsg.scrollIntoView({ behavior: "smooth", block: "center" });
       } else {
-        window.scrollBy({top: innerHeight, behavior:"smooth"});
+        window.scrollBy({ top: innerHeight, behavior: "smooth" });
       }
       let t = document.body.scrollHeight;
       s = (t === p) ? s + 1 : 0;
@@ -99,13 +100,13 @@ javascript:(function(){
       }
     }, 500);
   }
-  
-  // Convert ISO date (YYYY-MM-DD) to MM/DD/YYYY.
+
+  // Reformat ISO date (YYYY-MM-DD) to MM/DD/YYYY.
   function reformatDate(isoDate) {
     let parts = isoDate.split("-");
     return parts[1] + "/" + parts[2] + "/" + parts[0];
   }
-  
+
   // ────────────────────────────────────────────── 
   // FETCH & XHR CAPTURE (existing functionality)
   // ────────────────────────────────────────────── 
@@ -144,7 +145,7 @@ javascript:(function(){
     }
     return origSend.apply(this, arguments);
   };
-  
+
   // ────────────────────────────────────────────── 
   // FETCH UI PANEL (base UI for date selection)
   // ────────────────────────────────────────────── 
@@ -173,8 +174,8 @@ javascript:(function(){
   })();
   
   function getTimestamp(dateVal, hourVal, minVal, ampm){
-    let h = parseInt(hourVal, 10);
-    let m = parseInt(minVal, 10);
+    let h = parseInt(hourVal,10);
+    let m = parseInt(minVal,10);
     if(ampm === "PM" && h < 12) h += 12;
     if(ampm === "AM" && h === 12) h = 0;
     let dtStr = dateVal + "T" + ("0"+h).slice(-2) + ":" + ("0"+m).slice(-2) + ":00-04:00";
@@ -182,28 +183,30 @@ javascript:(function(){
   }
   
   async function fetchUtterances(){
-    // Grab dates from our UI panel.
+    // Get UI dates in ISO format (YYYY-MM-DD)
     let startDateVal = document.getElementById("startDate").value;
     let endDateVal = document.getElementById("endDate").value;
-    if(!startDateVal || !endDateVal) {
+    if(!startDateVal || !endDateVal){
       alert("Please select both dates.");
       return;
     }
-    // Convert ISO date (YYYY-MM-DD) to MM/DD/YYYY.
+    // Convert dates to MM/DD/YYYY format.
     let startDateFormatted = reformatDate(startDateVal);
     let endDateFormatted = reformatDate(endDateVal);
     
-    // Use the React Datepicker to select the dates on the page.
+    // Use React Datepicker helper to select dates sequentially.
     selectReactDate("date-start", startDateFormatted);
-    selectReactDate("date-end", endDateFormatted);
+    setTimeout(function(){
+      selectReactDate("date-end", endDateFormatted);
+    }, 2000);
     
-    // Start autoscrolling so that the page loads the audio logs.
+    // Start autoscrolling to load audio logs.
     autoScrollPage();
     
-    // Wait a few seconds to ensure the page loads.
+    // Wait a few seconds to allow page content to load after date selection.
     await new Promise(r => setTimeout(r, 3000));
     
-    // Now proceed with the fetch logic.
+    // Proceed with fetching history records.
     let startHour = document.getElementById("startHour").value;
     let startMin = document.getElementById("startMin").value;
     let startAMPM = document.getElementById("startAMPM").value;
@@ -213,7 +216,7 @@ javascript:(function(){
     
     let startTs = getTimestamp(startDateVal, startHour, startMin, startAMPM);
     let endTs = getTimestamp(endDateVal, endHour, endMin, endAMPM);
-    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
+    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{ timeZone:"America/New_York" })}\nEnd: ${new Date(endTs).toLocaleString("en-US",{ timeZone:"America/New_York" })}?`)){
       return;
     }
     let apiUrl = `https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=${startTs}&endTime=${endTs}&disableGlobalNav=false`;
@@ -224,21 +227,21 @@ javascript:(function(){
     let token = null;
     logMsg("⏳ Fetching utterances...");
     do {
-      let body = token ? JSON.stringify({previousRequestToken: token}) : "{}";
+      let body = token ? JSON.stringify({ previousRequestToken: token }) : "{}";
       let resp = await fetch(apiUrl, { method: method, headers: headers, credentials: credentials, body: body });
       let json = await resp.json();
       let recs = json.customerHistoryRecords || [];
       token = json.encodedRequestToken;
       records.push(...recs);
       logMsg(`📦 ${records.length} so far...`);
-      await new Promise(r => setTimeout(r,300));
+      await new Promise(r => setTimeout(r, 300));
     } while(token);
     logMsg(`✅ Done! ${records.length} total.`);
     document.getElementById("htmlBtn").disabled = false;
   }
   
   // ────────────────────────────────────────────── 
-  // UTTERANCE PROCESSING & UI RENDERING (existing code updated)
+  // UTTERANCE PROCESSING & UI RENDERING (existing logic updated)
   // ────────────────────────────────────────────── 
   function openFilteredPage(){
     let win = window.open("", "_blank");
@@ -292,9 +295,7 @@ javascript:(function(){
     
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
     let deviceSettings = {};
-    records.forEach(r => { 
-      if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
-    });
+    records.forEach(r => { if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false }; });
     const wakeWords = ["hey alexa","ok alexa","alexa","echo","computer","amazon"];
     
     function processRecordFlags(){
@@ -354,7 +355,7 @@ javascript:(function(){
       let currentFilter = deviceFilter.value;
       let visibleRecords = records.filter(r => {
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter !== ""){ return dev === currentFilter; }
+        if(currentFilter!==""){ return dev===currentFilter; }
         else { return deviceSettings[dev] && deviceSettings[dev].assigned; }
       });
       let totalUtterances = visibleRecords.length;
@@ -394,7 +395,6 @@ javascript:(function(){
         tbody.appendChild(tr);
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
-          // For response, use TTS_REPLACEMENT_TEXT as primary; fallback to ALEXA_RESPONSE.
           const responseTypes = ["tts_replacement_text","alexa_response"];
           for(let item of r.voiceHistoryRecordItems){
             if(item.recordItemType && responseTypes.includes(item.recordItemType.toLowerCase()) &&
@@ -462,9 +462,9 @@ javascript:(function(){
         deviceCount[dev] = (deviceCount[dev] || 0) + 1;
         let d = et(r.timestamp).split(",")[0];
         dailyCount[d] = (dailyCount[d] || 0) + 1;
-        if(!firstTs || r.timestamp < firstTs) firstTs = r.timestamp;
-        if(!lastTs || r.timestamp > lastTs) lastTs = r.timestamp;
-        if(!subPerDevice[dev]) subPerDevice[dev] = { "1W":0, "SR":0, "DUP":0 };
+        if(!firstTs || r.timestamp<firstTs) firstTs = r.timestamp;
+        if(!lastTs || r.timestamp>lastTs) lastTs = r.timestamp;
+        if(!subPerDevice[dev]) subPerDevice[dev] = {"1W":0,"SR":0,"DUP":0};
         r._activeFlags.forEach(flag=>{
           if(flag==="1W") subPerDevice[dev]["1W"]++;
           if(flag==="SR") subPerDevice[dev]["SR"]++;
