@@ -193,10 +193,11 @@ javascript:(function(){
         // Extract transcript using multiple possible keys.
         let transcript = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
-          let preferredTypes = ["customer-transcript", "data-warning-message", "replacement-text"];
+          let preferredTypes = ["customer-transcript", "data-warning-message", "replacement-text", "asr_replacement_text"];
           for (let pref of preferredTypes){
             let found = r.voiceHistoryRecordItems.find(item => {
-              return item.recordItemType && item.recordItemType.toLowerCase() === pref && item.transcriptText && item.transcriptText.trim();
+              return item.recordItemType && item.recordItemType.toLowerCase() === pref &&
+                     item.transcriptText && item.transcriptText.trim();
             });
             if(found){
               transcript = found.transcriptText.trim();
@@ -205,7 +206,8 @@ javascript:(function(){
           }
           if(!transcript){
             let found = r.voiceHistoryRecordItems.find(item => {
-              return item.recordItemType && item.recordItemType.toLowerCase() !== "alexa_response" && item.transcriptText && item.transcriptText.trim();
+              return item.recordItemType && item.recordItemType.toLowerCase() !== "alexa_response" &&
+                     item.transcriptText && item.transcriptText.trim();
             });
             if(found) transcript = found.transcriptText.trim();
           }
@@ -229,7 +231,7 @@ javascript:(function(){
         }
         
         // --- Short Utterance Detection ---
-        let words = transcript.split(/\s+/).filter(w=>w.length);
+        let words = transcript.split(/\s+/).filter(w => w.length);
         if(words.length <= 2 && !r._overrides["1W"]){
           r._activeFlags.push("1W");
         }
@@ -326,7 +328,9 @@ javascript:(function(){
         // Expandable row with Alexa Response.
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
-          const responseTypes = ["tts_replacement_text","alexa_response","asr_replacement_text"];
+          // Look specifically for TTS_REPLACEMENT_TEXT as primary response,
+          // then fallback to ALEXA_RESPONSE.
+          const responseTypes = ["tts_replacement_text", "alexa_response"];
           for(let item of r.voiceHistoryRecordItems){
             if(item.recordItemType && responseTypes.includes(item.recordItemType.toLowerCase()) &&
                item.transcriptText && item.transcriptText.trim()){
