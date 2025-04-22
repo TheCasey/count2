@@ -365,30 +365,52 @@ let filterStartTs = null, filterEndTs = null;
 
     // Hook up Tap Check button
     win.document.getElementById('tapCheckBtn').onclick = function(){
-      alert('Checking matches against the dictionary...');
-      // Determine visible records based on current filter
-      let deviceFilterVal = win.document.getElementById('deviceFilter').value;
-      let visibleRecs = records.filter(r => {
-        let dev = r.device?.deviceName || 'Unknown';
-        if(deviceFilterVal) return dev === deviceFilterVal;
-        return deviceSettings[dev].assigned;
+      // Compute visible records and matches
+      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
+      const visibleRecs = records.filter(r => {
+        const dev = r.device?.deviceName || 'Unknown';
+        return deviceFilterVal ? dev === deviceFilterVal : deviceSettings[dev].assigned;
       });
-      // Find matches
-      let matches = visibleRecs.filter(r =>
+      const matches = visibleRecs.filter(r =>
         tappedPhrases.some(phrase =>
           phrase && r._transcript.toLowerCase().includes(phrase.toLowerCase())
         )
       );
-      // Prompt to flag TAP
-      if(confirm(`Found ${matches.length} matches. Flag TAP on these utterances?`)){
+
+      // Build modal overlay
+      const overlay = win.document.createElement('div');
+      Object.assign(overlay.style, {
+        position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+        background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', zIndex: '10000'
+      });
+
+      // Build modal content
+      const modal = win.document.createElement('div');
+      Object.assign(modal.style, {
+        background: '#fff', padding: '20px', borderRadius: '8px',
+        maxWidth: '400px', textAlign: 'center'
+      });
+      modal.innerHTML = `
+        <p>Found <b>${matches.length}</b> matches in current view.</p>
+        <button id="applyTapBtn" style="margin-right:10px;">Apply TAP Flags</button>
+        <button id="closeTapModalBtn">Cancel</button>
+      `;
+      overlay.appendChild(modal);
+      win.document.body.appendChild(overlay);
+
+      // “Apply TAP Flags” logic
+      modal.querySelector('#applyTapBtn').onclick = () => {
         matches.forEach(r => {
-          // Initialize TAP override flag if missing
-          if(r._overrides.TAP === undefined) r._overrides.TAP = false;
-          // Clear override so it will be flagged
-          r._overrides.TAP = false;
+          if (r._overrides.TAP === undefined) r._overrides.TAP = false;
+          r._overrides.TAP = false;  // clear override so TAP will be applied
         });
         renderData();
-      }
+        overlay.remove();
+      };
+
+      // “Cancel” logic
+      modal.querySelector('#closeTapModalBtn').onclick = () => overlay.remove();
     };
     // Shared modal helper
     function showModal(winRef, text){
