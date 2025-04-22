@@ -382,7 +382,8 @@ let filterStartTs = null, filterEndTs = null;
       "Find local activities",
       "Find a good local restaurant and book a table",
       "Find local event tickets with Ticketmaster. Start by asking me what type of event I am interested in.",
-      "I need help brainstorming healthy meal plans for the week, considering various dietary preferences"];
+      "I need help brainstorming healthy meal plans for the week, considering various dietary preferences",
+      "Can you explain to me how you can help me plan a trip?"];
 
     // Hook up Tap Check button
     win.document.getElementById('tapCheckBtn').onclick = function(){
