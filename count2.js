@@ -680,11 +680,17 @@ javascript:(function(){
       modalOverlay.className = "modalOverlay";
       let modal = win.document.createElement("div");
       modal.className = "modal";
+      // Build the table header, adding a Type column for System Replacement overrides
+      let headerCols = '<th>Time (ET)</th><th>Device</th>';
+      if (category === 'SR') {
+        headerCols += '<th>Type</th>';
+      }
+      headerCols += '<th>Transcript</th><th>Override?</th>';
       modal.innerHTML = `<span class="closeModal">✖</span>
         <h3>Override for ${category}</h3>
         <table>
           <thead>
-            <tr><th>Time (ET)</th><th>Device</th><th>Transcript</th><th>Override?</th></tr>
+            <tr>${headerCols}</tr>
           </thead>
           <tbody id="modalBody"></tbody>
         </table>
@@ -704,10 +710,13 @@ javascript:(function(){
       visibleRecords.forEach((r, i)=>{
         if(r._activeFlags.includes(category) || r._overrides[category]){
           let tr = win.document.createElement("tr");
-          tr.innerHTML = `<td>${et(r.timestamp)}</td>
-            <td>${(r.device && r.device.deviceName) || "Unknown"}</td>
-            <td>${r._transcript}</td>
+          let rowHtml = `<td>${et(r.timestamp)}</td><td>${r.device?.deviceName || "Unknown"}</td>`;
+          if (category === 'SR') {
+            rowHtml += `<td>${r.utteranceType || r.intent || ""}</td>`;
+          }
+          rowHtml += `<td>${r._transcript}</td>
             <td><input type="checkbox" data-i="${i}" data-cat="${category}" ${r._overrides[category] ? "checked" : ""}></td>`;
+          tr.innerHTML = rowHtml;
           modalBody.appendChild(tr);
         }
       });
