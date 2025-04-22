@@ -314,7 +314,19 @@ javascript:(function(){
     </div>
     <div id="rightPanel">
       <button id="expandAll" style="margin-bottom:10px">Expand All</button>
-      <input id="searchBox" placeholder="Search..." style="width:100%;padding:5px;">
+      <div id="filtersContainer" style="display:flex;gap:5px;margin-bottom:10px;">
+        <div class="filterRow" style="display:flex;gap:4px;">
+          <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
+          <select class="filterField">
+            <option value="any">Any</option>
+            <option value="time">Time</option>
+            <option value="type">Type</option>
+            <option value="transcript">Transcript</option>
+          </select>
+          <button class="removeFilterBtn" style="display:none;">×</button>
+        </div>
+        <button id="addFilterBtn" style="width:24px;">+</button>
+      </div>
       <select id="deviceFilter"><option value="">All Devices</option></select>
       <table>
         <thead>
@@ -744,17 +756,17 @@ javascript:(function(){
       };
     }
 
-    win.document.getElementById("searchBox").oninput = function(e){
-      let val = e.target.value.toLowerCase();
-      [...win.document.getElementById("tableBody").children].forEach(tr=>{
-        if(tr.id && tr.id.startsWith("resp")) return;
-        tr.style.display = tr.innerText.toLowerCase().includes(val) ? "" : "none";
-        let next = tr.nextElementSibling;
-        if(next && next.id && next.id.startsWith("resp")){
-          next.style.display = "none";
-        }
-      });
-    };
+    // win.document.getElementById("searchBox").oninput = function(e){
+    //   let val = e.target.value.toLowerCase();
+    //   [...win.document.getElementById("tableBody").children].forEach(tr=>{
+    //     if(tr.id && tr.id.startsWith("resp")) return;
+    //     tr.style.display = tr.innerText.toLowerCase().includes(val) ? "" : "none";
+    //     let next = tr.nextElementSibling;
+    //     if(next && next.id && next.id.startsWith("resp")){
+    //       next.style.display = "none";
+    //     }
+    //   });
+    // };
 
     win.document.getElementById("deviceFilter").onchange = function(){ renderData(); };
 
@@ -774,5 +786,61 @@ javascript:(function(){
 
     renderData();
     renderDeviceSettings();
+
+    // Multi‐filter functionality
+    function applyFilters(){
+      const filters = [...win.document.querySelectorAll('#filtersContainer .filterRow')];
+      const rows = [...win.document.querySelectorAll('#tableBody tr')].filter(r => !r.id);
+      rows.forEach(row => {
+        let visible = true;
+        filters.forEach(fr => {
+          const input = fr.querySelector('.filterInput').value.toLowerCase();
+          const field = fr.querySelector('.filterField').value;
+          if(input){
+            let text = '';
+            if(field === 'any') text = row.innerText.toLowerCase();
+            else if(field === 'time') text = row.cells[1].innerText.toLowerCase();
+            else if(field === 'type') text = row.cells[3].innerText.toLowerCase();
+            else if(field === 'transcript') text = row.cells[4].innerText.toLowerCase();
+            if(!text.includes(input)) visible = false;
+          }
+        });
+        row.style.display = visible ? '' : 'none';
+        const next = row.nextElementSibling;
+        if(next && next.id && next.id.startsWith('resp')) next.style.display = 'none';
+      });
+    }
+
+    function bindFilterEvents(fr){
+      const input = fr.querySelector('.filterInput');
+      const field = fr.querySelector('.filterField');
+      const removeBtn = fr.querySelector('.removeFilterBtn');
+      input.oninput = applyFilters;
+      field.onchange = applyFilters;
+      removeBtn.onclick = () => { fr.remove(); applyFilters(); };
+    }
+
+    // Initialize first filter row
+    [...win.document.querySelectorAll('#filtersContainer .filterRow')].forEach(bindFilterEvents);
+
+    // Add new filter rows
+    win.document.getElementById('addFilterBtn').onclick = () => {
+      const fr = win.document.createElement('div');
+      fr.className = 'filterRow';
+      fr.style = 'display:flex;gap:4px;';
+      fr.innerHTML = `
+        <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
+        <select class="filterField">
+          <option value="any">Any</option>
+          <option value="time">Time</option>
+          <option value="type">Type</option>
+          <option value="transcript">Transcript</option>
+        </select>
+        <button class="removeFilterBtn">×</button>`;
+      win.document.getElementById('filtersContainer').insertBefore(
+        fr, win.document.getElementById('addFilterBtn')
+      );
+      bindFilterEvents(fr);
+    };
   }
 })();
