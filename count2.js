@@ -150,8 +150,9 @@ javascript:(function(){
   // ────────────────────────────────────────────── 
   // FETCH & XHR CAPTURE (existing functionality)
   // ────────────────────────────────────────────── 
-  let capturedFetch = null;
-  let records = [];
+let capturedFetch = null;
+let records = [];
+let filterStartTs = null, filterEndTs = null;
   function logMsg(msg){
     document.getElementById("fetchLog").innerText = msg;
   }
@@ -256,6 +257,8 @@ javascript:(function(){
     if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
       return;
     }
+    filterStartTs = startTs;
+    filterEndTs = endTs;
     let apiUrl = `https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=${startTs}&endTime=${endTs}&disableGlobalNav=false`;
     let headers = { ...capturedFetch.init.headers };
     let method = "POST";
@@ -614,60 +617,108 @@ javascript:(function(){
     }
 
     function generateReport(){
-      let deviceFilter = win.document.getElementById("deviceFilter");
-      let currentFilter = deviceFilter.value;
-      let visibleRecords = records.filter(r=>{
-        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        if(currentFilter!==""){
-          return dev===currentFilter;
+      // Determine visible records based on device filter
+      const deviceFilterVal = win.document.getElementById("deviceFilter").value;
+      const visibleRecords = records.filter(r=>{
+        const dev = r.device?.deviceName || "Unknown";
+        if(deviceFilterVal !== ""){
+          return dev === deviceFilterVal;
         } else {
           return deviceSettings[dev] && deviceSettings[dev].assigned;
         }
       });
-      if(visibleRecords.length===0) return "No records available for report.";
-      
-      let deviceCount = {}, dailyCount = {}, subPerDevice = {};
-      let firstTs = null, lastTs = null;
-      visibleRecords.forEach(r=>{
-        let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
-        deviceCount[dev] = (deviceCount[dev] || 0) + 1;
-        let d = et(r.timestamp).split(",")[0];
-        dailyCount[d] = (dailyCount[d] || 0) + 1;
-        if(!firstTs || r.timestamp<firstTs) firstTs = r.timestamp;
-        if(!lastTs || r.timestamp>lastTs) lastTs = r.timestamp;
-        if(!subPerDevice[dev]) subPerDevice[dev] = {"1W":0,"SR":0,"DUP":0};
-        r._activeFlags.forEach(flag=>{
-          if(flag==="1W") subPerDevice[dev]["1W"]++;
-          if(flag==="SR") subPerDevice[dev]["SR"]++;
-          if(flag==="DUP") subPerDevice[dev]["DUP"]++;
+      if(visibleRecords.length === 0) return "No records available for report.";
+
+      // Aggregate counts
+      const deviceCount = {}, dailyCount = {}, subPerDevice = {};
+      let firstValidTs = null, lastValidTs = null;
+      visibleRecords.forEach(r => {
+        const dev = r.device?.deviceName || "Unknown";
+        deviceCount[dev] = (deviceCount[dev]||0) + 1;
+        const dateKey = new Date(r.timestamp)
+          .toLocaleDateString("en-US",{timeZone:"America/New_York"});
+        dailyCount[dateKey] = (dailyCount[dateKey]||0) + 1;
+        if(!firstValidTs || r.timestamp < firstValidTs) firstValidTs = r.timestamp;
+        if(!lastValidTs  || r.timestamp > lastValidTs)  lastValidTs  = r.timestamp;
+        subPerDevice[dev] = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
+        r._activeFlags.forEach(flag => {
+          if(flag === "1W") subPerDevice[dev]["1W"]++;
+          if(flag === "SR") subPerDevice[dev]["SR"]++;
+          if(flag === "DUP") subPerDevice[dev]["DUP"]++;
         });
       });
-      let total1W = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["1W"]||0),0);
-      let totalSR = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["SR"]||0),0);
-      let totalDUP = Object.values(subPerDevice).reduce((acc,cur)=>acc+(cur["DUP"]||0),0);
-      let totalSubs = total1W + totalSR + totalDUP;
-      let report = "";
-      report += "Device Overview:\n";
-      Object.entries(deviceCount).forEach(([dev,cnt])=>{ report += `${dev}: ${cnt}\n`; });
-      report += "\n";
-      report += `First Valid: ${et(firstTs)}\n`;
-      report += `Last Valid: ${et(lastTs)}\n`;
-      report += "\n";
-      report += "Daily Overview:\n";
-      Object.entries(dailyCount).forEach(([day,cnt])=>{ report += `${day}: ${cnt}\n`; });
-      report += "\n";
-      report += "Subtractions Per Device:\n\n";
-      Object.entries(subPerDevice).forEach(([dev,subs])=>{
-        report += `${dev}:\n`;
-        report += `  Short Utterance: ${subs["1W"]}\n`;
-        report += `  System Replacement: ${subs["SR"]}\n`;
-        report += `  Duplicates: ${subs["DUP"]}\n\n`;
+
+      // Format header
+      const startStr = new Date(filterStartTs)
+        .toLocaleString("en-US",{timeZone:"America/New_York"});
+      const endStr   = new Date(filterEndTs)
+        .toLocaleString("en-US",{timeZone:"America/New_York"});
+      let report = `<b>Week</b>: ${startStr} - ${endStr}\n`;
+
+      // Assigned devices
+      const assigned = Object.entries(deviceSettings)
+        .filter(([d,s])=>s.assigned)
+        .map(([d])=>d);
+      report += `<b>Assigned Devices</b>: ${assigned.join(", ")}\n\n`;
+
+      // Estimated Valid (overall)
+      report += "<b>Estimated Valid</b>:\n";
+      assigned.forEach(dev => {
+        const total = deviceCount[dev] || 0;
+        const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
+        const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
+        report += `${dev}: ${valid}\n`;
       });
-      report += "Overall Subtraction Totals:\n";
-      report += `Total Short Utterances: ${total1W}\n`;
-      report += `Total System Replacement: ${totalSR}\n`;
-      report += `Total Duplicates: ${totalDUP}\n`;
-      report += `Total Subtractions: ${totalSubs}\n`;
+      report += "\n";
+
+      // Testing Time
+      report += "<b>Testing Time:</b>\n";
+      const firstValidStr = firstValidTs
+        ? new Date(firstValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
+        : "N/A";
+      const lastValidStr  = lastValidTs
+        ? new Date(lastValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
+        : "N/A";
+      report += `First Valid: ${firstValidStr}\n`;
+      report += `Last Valid: ${lastValidStr}\n\n`;
+
+      // Daily Overview
+      Object.entries(dailyCount).forEach(([day,c]) => {
+        report += `${day}: ${c}\n`;
+      });
+      report += "\n";
+      report += "<b>Recommendation</b>:\n";
+      report += "<b>Things to Try</b>:\n";
+      report += "<b>Audit Comment</b>:\n";
+      report += "<b>Areas of Improvement</b>:\n";
+      report += "<b>Tester Contacted?</b>:\n";
+      report += "<b>Tester Acknowledgement/Feedback Screenshot?</b>:\n\n\n";
+      // Subtractions section
+      report += "<b>Subtractions</b>:\n\n";
+      report += "Total Lines:\n";
+      assigned.forEach(dev => {
+        report += `${dev}: ${deviceCount[dev]||0}\n`;
+      });
+      report += "\n";
+      assigned.forEach(dev => {
+        const subs = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
+        const tot = subs["1W"] + subs["SR"] + subs["DUP"];
+        report += `${dev}:\n` +
+                  `  Short Utterance: ${subs["1W"]}\n` +
+                  `  System Replacement: ${subs["SR"]}\n` +
+                  `  Duplicates: ${subs["DUP"]}\n` +
+                  `  Total: ${tot}\n\n`;
+      });
+
+      // Estimated Valid again under subtractions
+      report += "Estimated Valid:\n";
+      assigned.forEach(dev => {
+        const total = deviceCount[dev] || 0;
+        const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
+        const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
+        report += `${dev}: ${valid}\n`;
+      });
+
       return report;
     }
 
