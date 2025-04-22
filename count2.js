@@ -310,6 +310,7 @@ let filterStartTs = null, filterEndTs = null;
       <div style="margin-top:10px;">
         <button id="generateReportBtn">Generate Report</button>
         <button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button>
+        <button id="tapCheckBtn" style="margin-left:5px;">Tap Check</button>
       </div>
       <hr>
       <h3>Devices</h3>
@@ -358,6 +359,36 @@ let filterStartTs = null, filterEndTs = null;
     win.document.getElementById('exportSubsBtn').onclick = function(){
       const subsText = generateSubtractionsReport();
       showModal(win, subsText);
+    };
+    // Blank dictionary for tapped suggestions
+    const tappedPhrases = [];
+
+    // Hook up Tap Check button
+    win.document.getElementById('tapCheckBtn').onclick = function(){
+      alert('Checking matches against the dictionary...');
+      // Determine visible records based on current filter
+      let deviceFilterVal = win.document.getElementById('deviceFilter').value;
+      let visibleRecs = records.filter(r => {
+        let dev = r.device?.deviceName || 'Unknown';
+        if(deviceFilterVal) return dev === deviceFilterVal;
+        return deviceSettings[dev].assigned;
+      });
+      // Find matches
+      let matches = visibleRecs.filter(r =>
+        tappedPhrases.some(phrase =>
+          phrase && r._transcript.toLowerCase().includes(phrase.toLowerCase())
+        )
+      );
+      // Prompt to flag TAP
+      if(confirm(`Found ${matches.length} matches. Flag TAP on these utterances?`)){
+        matches.forEach(r => {
+          // Initialize TAP override flag if missing
+          if(r._overrides.TAP === undefined) r._overrides.TAP = false;
+          // Clear override so it will be flagged
+          r._overrides.TAP = false;
+        });
+        renderData();
+      }
     };
     // Shared modal helper
     function showModal(winRef, text){
@@ -433,6 +464,8 @@ let filterStartTs = null, filterEndTs = null;
       let deviceLastTranscript = {};
       records.forEach(r => {
         r._activeFlags = [];
+        // Prepare for TAP flags (if any)
+        if(r._overrides.TAP === undefined) r._overrides.TAP = false;
         let transcript = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
           let preferredTypes = ["customer-transcript","data-warning-message","replacement-text","asr_replacement_text"];
@@ -500,6 +533,10 @@ let filterStartTs = null, filterEndTs = null;
           }
         } else {
           deviceLastTranscript[dev] = transcript;
+        }
+        // Apply TAP flag if override is cleared
+        if(!r._overrides.TAP && r._activeFlags.includes('TAP')){
+          r._activeFlags.push('TAP');
         }
       });
     }
