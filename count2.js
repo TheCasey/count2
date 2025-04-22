@@ -438,11 +438,13 @@ javascript:(function(){
         if(deviceSettings[dev] === undefined){
           deviceSettings[dev] = { assigned: true, textBased: false };
         }
-        if(type !== "GENERAL"){
-          if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR){
-            if(r._activeFlags.includes("1W")){
+        // System Replacement: non-GENERAL, or GENERAL when device is text-based
+        if((type !== "GENERAL") || (type === "GENERAL" && deviceSettings[dev].textBased)) {
+          // Exempt routines on text-based input devices
+          if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR) {
+            if(r._activeFlags.includes("1W")) {
               r._activeFlags.push("SR");
-              r._overrides.SR = true; // Auto override for SR if also short
+              r._overrides.SR = true; // Auto override if already short
             } else {
               r._activeFlags.push("SR");
             }
