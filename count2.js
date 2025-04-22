@@ -367,10 +367,13 @@ let filterStartTs = null, filterEndTs = null;
       const container = winRef.document.createElement('div');
       container.style = 'background:#fff;padding:20px;border-radius:8px;'
                       + 'max-width:600px;max-height:80%;overflow:auto;';
-      const ta = winRef.document.createElement('textarea');
-      ta.style = 'width:100%;height:300px;';
-      ta.value = text;
-      container.appendChild(ta);
+      // Use a contenteditable div to render HTML bold tags
+      const contentDiv = winRef.document.createElement('div');
+      contentDiv.contentEditable = true;
+      contentDiv.style = 'width:100%; height:300px; overflow:auto; white-space:pre-wrap; border:1px solid #ccc; padding:4px;';
+      // convert newlines to <br> for HTML rendering
+      contentDiv.innerHTML = text.replace(/\n/g, '<br>');
+      container.appendChild(contentDiv);
       const closeBtn = winRef.document.createElement('button');
       closeBtn.textContent = 'Close';
       closeBtn.style = 'margin-top:10px;';
