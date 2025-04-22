@@ -414,7 +414,7 @@ let filterStartTs = null, filterEndTs = null;
         maxWidth: '400px', textAlign: 'center'
       });
       modal.innerHTML = `
-        <p>Found <b>${matches.length}</b> matches in current view.</p>
+        <p>Found <b>${matches.length}</b> matches in current view.(NOTE: THIS IS A FEATURE IN DEVELOPMENT AND MAY NOT BE FULLY ACCURATE)</p>
         <button id="applyTapBtn" style="margin-right:10px;">Apply TAP Flags</button>
         <button id="closeTapModalBtn">Cancel</button>
       `;
