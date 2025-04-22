@@ -470,7 +470,7 @@ let filterStartTs = null, filterEndTs = null;
           r._detectedWW = null;
         }
         let words = transcript.split(/\s+/).filter(w => w.length);
-        if(words.length <= 2 && !r._overrides["1W"]){
+        if(words.length <= 1 && !r._overrides["1W"]){
           r._activeFlags.push("1W");
         }
         let type = r.utteranceType || r.intent || "";
