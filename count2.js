@@ -659,6 +659,14 @@ javascript:(function(){
         chk.onchange = function(e){
           let d = e.target.getAttribute("data-dev");
           deviceSettings[d].textBased = e.target.checked;
+          // Clear SR and DUP overrides for this device so flags recalculate correctly
+          records.forEach(r => {
+            let devName = r.device?.deviceName || "Unknown";
+            if (devName === d) {
+              r._overrides.SR = false;
+              r._overrides.DUP = false;
+            }
+          });
           renderData();
           renderDeviceSettings();
         };
