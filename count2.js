@@ -336,9 +336,10 @@ let filterStartTs = null, filterEndTs = null;
           <tr>
             <th>Toggle/Flags</th>
             <th>Time (ET)</th>
+            <th>Profile</th>
             <th>Device</th>
-            <th>Type</th>
             <th>Transcript</th>
+            <th>Type</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -562,10 +563,19 @@ let filterStartTs = null, filterEndTs = null;
             target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none";
           }
         });
+        // Time
         tr.insertCell(1).innerText = et(r.timestamp);
-        tr.insertCell(2).innerText = dev;
-        tr.insertCell(3).innerText = r.utteranceType || r.intent || "";
+        // Profile (from personsInfo)
+        let profile = (r.personsInfo && r.personsInfo.length>0) 
+                      ? r.personsInfo[0].personFirstName 
+                      : "";
+        tr.insertCell(2).innerText = profile;
+        // Device
+        tr.insertCell(3).innerText = dev;
+        // Transcript
         tr.insertCell(4).innerText = r._transcript;
+        // Type
+        tr.insertCell(5).innerText = r.utteranceType || r.intent || "";
         tbody.appendChild(tr);
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
@@ -581,7 +591,7 @@ let filterStartTs = null, filterEndTs = null;
         let tr2 = win.document.createElement("tr");
         tr2.id = `resp${idx}`;
         tr2.style.display = "none";
-        tr2.innerHTML = `<td colspan='5' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
+        tr2.innerHTML = `<td colspan='6' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
         tbody.appendChild(tr2);
       });
       let wwTotal = Object.values(wwCounts).reduce((a,b)=>a+b,0);
@@ -895,10 +905,15 @@ let filterStartTs = null, filterEndTs = null;
           const field = fr.querySelector('.filterField').value;
           if(input){
             let text = '';
-            if(field === 'any') text = row.innerText.toLowerCase();
-            else if(field === 'time') text = row.cells[1].innerText.toLowerCase();
-            else if(field === 'type') text = row.cells[3].innerText.toLowerCase();
-            else if(field === 'transcript') text = row.cells[4].innerText.toLowerCase();
+            if(field === 'any') {
+              text = row.innerText.toLowerCase();
+            } else if(field === 'time') {
+              text = row.cells[1].innerText.toLowerCase();
+            } else if(field === 'type') {
+              text = row.cells[5].innerText.toLowerCase();
+            } else if(field === 'transcript') {
+              text = row.cells[4].innerText.toLowerCase();
+            }
             if(!text.includes(input)) visible = false;
           }
         });
