@@ -304,7 +304,10 @@ javascript:(function(){
     <div id="leftPanel">
       <h2>Summary</h2>
       <div id="summary"></div>
-      <button id="copyReportBtn">Copy Report</button>
+      <div style="margin-top:10px;">
+        <button id="generateReportBtn">Generate Report</button>
+        <button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button>
+      </div>
       <hr>
       <h3>Devices</h3>
       <div id="deviceList"></div>
@@ -329,6 +332,54 @@ javascript:(function(){
   </body>
 </html>`);
     win.document.close();
+
+    // Hook up Generate Report button
+    win.document.getElementById('generateReportBtn').onclick = function(){
+      const reportText = generateReport();
+      showModal(win, reportText);
+    };
+    // Hook up Export Subtractions button
+    win.document.getElementById('exportSubsBtn').onclick = function(){
+      const subsText = generateSubtractionsReport();
+      showModal(win, subsText);
+    };
+    // Shared modal helper
+    function showModal(winRef, text){
+      const overlay = winRef.document.createElement('div');
+      overlay.style = 'position:fixed;top:0;left:0;width:100%;height:100%;'
+                    + 'background:rgba(0,0,0,0.5);display:flex;align-items:center;'
+                    + 'justify-content:center;z-index:10000;';
+      const container = winRef.document.createElement('div');
+      container.style = 'background:#fff;padding:20px;border-radius:8px;'
+                      + 'max-width:600px;max-height:80%;overflow:auto;';
+      const ta = winRef.document.createElement('textarea');
+      ta.style = 'width:100%;height:300px;';
+      ta.value = text;
+      container.appendChild(ta);
+      const closeBtn = winRef.document.createElement('button');
+      closeBtn.textContent = 'Close';
+      closeBtn.style = 'margin-top:10px;';
+      closeBtn.onclick = () => overlay.remove();
+      container.appendChild(closeBtn);
+      overlay.appendChild(container);
+      winRef.document.body.appendChild(overlay);
+    }
+    // Generate a text report of subtractions
+    function generateSubtractionsReport(){
+      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
+      const visible = records.filter(r => {
+        const dev = r.device?.deviceName || 'Unknown';
+        return deviceFilterVal ? dev === deviceFilterVal : deviceSettings[dev].assigned;
+      });
+      const lines = [];
+      visible.forEach(r => {
+        const flags = r._activeFlags.filter(f => f === '1W' || f === 'SR' || f === 'DUP');
+        if(flags.length) {
+          lines.push(`${r._transcript} (${flags.join(',')})`);
+        }
+      });
+      return lines.join('\n');
+    }
 
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
     let deviceSettings = {};
@@ -497,6 +548,9 @@ javascript:(function(){
           <li>Duplicates: ${subCounts["DUP"]} <span class="viewBtn" data-cat="DUP">(view)</span></li>
         </ul>
       `;
+      // Compute estimated valid utterances
+      const validCount = totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"];
+      summaryHTML += `<p><b>Estimated Valid Utterances:</b> ${validCount}</p>`;
       win.document.getElementById("summary").innerHTML = summaryHTML;
       
       // Preserve selected device filter if possible.
@@ -698,28 +752,6 @@ javascript:(function(){
       }
     };
     
-    // Replace Copy Report with Generate Report
-    const generateBtn = win.document.getElementById('copyReportBtn');
-    generateBtn.textContent = 'Generate Report';
-    generateBtn.onclick = function(){
-      const reportText = generateReport();
-      // Create modal overlay
-      const overlay = win.document.createElement('div');
-      overlay.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;';
-      const container = win.document.createElement('div');
-      container.style = 'background:#fff; padding:20px; border-radius:8px; max-width:600px; max-height:80%; overflow:auto;';
-      const txtArea = win.document.createElement('textarea');
-      txtArea.style = 'width:100%; height:300px;';
-      txtArea.value = reportText;
-      container.appendChild(txtArea);
-      const closeBtn = win.document.createElement('button');
-      closeBtn.textContent = 'Close';
-      closeBtn.style = 'margin-top:10px;';
-      closeBtn.onclick = () => overlay.remove();
-      container.appendChild(closeBtn);
-      overlay.appendChild(container);
-      win.document.body.appendChild(overlay);
-    };
 
     renderData();
     renderDeviceSettings();
