@@ -382,21 +382,43 @@ let filterStartTs = null, filterEndTs = null;
       overlay.appendChild(container);
       winRef.document.body.appendChild(overlay);
     }
-    // Generate a text report of subtractions
+    // Generate a detailed subtractions report per device/category
     function generateSubtractionsReport(){
       const deviceFilterVal = win.document.getElementById('deviceFilter').value;
-      const visible = records.filter(r => {
-        const dev = r.device?.deviceName || 'Unknown';
-        return deviceFilterVal ? dev === deviceFilterVal : deviceSettings[dev].assigned;
+      // Determine which devices to include
+      const devices = deviceFilterVal
+        ? [deviceFilterVal]
+        : Object.keys(deviceSettings).filter(d => deviceSettings[d].assigned);
+      const reportLines = ['Detailed Subtractions:'];
+      devices.forEach(dev => {
+        reportLines.push('', `Device: ${dev}`);
+        // Gather records for this device
+        const devRecs = records.filter(r => (r.device?.deviceName || 'Unknown') === dev);
+        // Collect per-category entries
+        const shortList = [];
+        const srList = [];
+        const dupList = [];
+        devRecs.forEach(r => {
+          if (r._activeFlags.includes('1W')) {
+            shortList.push(r._transcript);
+          }
+          if (r._activeFlags.includes('SR')) {
+            const typeLabel = r.utteranceType || r.intent || '';
+            srList.push(`${r._transcript} (${typeLabel})`);
+          }
+          if (r._activeFlags.includes('DUP')) {
+            dupList.push(r._transcript);
+          }
+        });
+        // Append counts and details
+        reportLines.push(`Short Utterances: ${shortList.length}`);
+        shortList.forEach(item => reportLines.push(item));
+        reportLines.push(`System Replacement: ${srList.length}`);
+        srList.forEach(item => reportLines.push(item));
+        reportLines.push(`Duplicates: ${dupList.length}`);
+        dupList.forEach(item => reportLines.push(item));
       });
-      const lines = [];
-      visible.forEach(r => {
-        const flags = r._activeFlags.filter(f => f === '1W' || f === 'SR' || f === 'DUP');
-        if(flags.length) {
-          lines.push(`${r._transcript} (${flags.join(',')})`);
-        }
-      });
-      return lines.join('\n');
+      return reportLines.join('\n');
     }
 
     let et = ts => new Date(ts).toLocaleString("en-US", { timeZone:"America/New_York" });
