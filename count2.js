@@ -361,7 +361,28 @@ let filterStartTs = null, filterEndTs = null;
       showModal(win, subsText);
     };
     // Blank dictionary for tapped suggestions
-    const tappedPhrases = [];
+    const tappedPhrases = ["Plan an event. Start by asking me for details about the event along with my preferences.",
+      "Plan a trip. You are a travel expert. Start by asking me questions about my trip, such as location, dates, and number of people.",
+      "Plan a new workout routine. Start by asking me questions about my fitness goals.",
+      "Plan my meals for the week. You are a dietary expert. Start by asking me questions to help tailor my meal plan, and take into account my dietary restrictions.",
+      "You are a knowledge expert and I want to learn something new. Teach me a random fact that may not be very common knowledge.",
+      "Learn how to cook a new dish",
+      "Help me learn how to better organize my life. You are a helpful life coach. Start by asking me questions to learn more about me and the areas of my life that need organization and types of goals I might want to set, then help me put together a personalized plan to execute on those goals.",
+      "Learn how to best care for something",
+      "Create an image",
+      "Create a reminder",
+      "Create a calendar event. Start by asking questions about event details.",
+      "Create a study guide",
+      "Create a packing list",
+      "Shop for my top deals and tell me why each deal was selected for me",
+      "Shop for gift ideas for my friend. Start by asking me questions about my friend that might help in the gifts search, limit it to 5 ideas, and then tell me why each deal was selected.",
+      "Shop for groceries. Give me personalized grocery recommendations.",
+      "Add items to my shopping list",
+      "Find upcoming events on my calendar",
+      "Find local activities",
+      "Find a good local restaurant and book a table",
+      "Find local event tickets with Ticketmaster. Start by asking me what type of event I am interested in.",
+      "I need help brainstorming healthy meal plans for the week, considering various dietary preferences"];
 
     // Hook up Tap Check button
     win.document.getElementById('tapCheckBtn').onclick = function(){
