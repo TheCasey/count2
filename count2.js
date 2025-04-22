@@ -606,6 +606,12 @@ let filterStartTs = null, filterEndTs = null;
         <h4>Wake Words:</h4>
         <ul>${Object.entries(wwCounts).map(([w,c])=>`<li>${w}: ${c}</li>`).join('')}</ul>
         <p>Total WW: ${wwTotal} (${wwPct}% of utterances)</p>
+      `;
+      // Clamp subtraction counts so they stay within [0, totalUtterances]
+      subCounts["1W"] = Math.max(0, Math.min(subCounts["1W"], totalUtterances));
+      subCounts["SR"] = Math.max(0, Math.min(subCounts["SR"], totalUtterances));
+      subCounts["DUP"] = Math.max(0, Math.min(subCounts["DUP"], totalUtterances));
+      summaryHTML += `
         <h4>Subtractions:</h4>
         <ul>
           <li>Short Utterances: ${subCounts["1W"]} <span class="viewBtn" data-cat="1W">(view)</span></li>
@@ -613,14 +619,17 @@ let filterStartTs = null, filterEndTs = null;
           <li>Duplicates: ${subCounts["DUP"]} <span class="viewBtn" data-cat="DUP">(view)</span></li>
         </ul>
       `;
-      // Compute estimated valid utterances
-      const validCount = totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"];
+      // Compute and clamp estimated valid utterances
+      const validCount = Math.max(
+        0,
+        totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"]
+      );
       summaryHTML += `<p><b>Estimated Valid Utterances:</b> ${validCount}</p>`;
       // Estimated valid utterances per device
       summaryHTML += `<h4>Estimated Valid Per Device:</h4><ul>${
         Object.entries(deviceCount).map(([d, count]) => {
           const subs = subPerDevice[d] || { "1W":0, "SR":0, "DUP":0 };
-          const valid = count - (subs["1W"] + subs["SR"] + subs["DUP"]);
+          const valid = Math.max(0, count - (subs["1W"] + subs["SR"] + subs["DUP"]));
           return `<li>${d}: ${valid}</li>`;
         }).join('')
       }</ul>`;
