@@ -493,6 +493,8 @@ javascript:(function(){
       let wwCounts = {}, subCounts = { "1W":0, "SR":0, "DUP":0 };
       let deviceCount = {}, dailyCount = {};
       let firstTs = null, lastTs = null;
+      // Track subtractions per device for valid calculation
+      let subPerDevice = {};
       visibleRecords.forEach((r, idx) => {
         let time = et(r.timestamp);
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
@@ -505,10 +507,21 @@ javascript:(function(){
           let ww = r._detectedWW;
           wwCounts[ww] = (wwCounts[ww] || 0) + 1;
         }
+        // Increment global and per-device subtraction counts
+        subPerDevice[dev] = subPerDevice[dev] || { "1W":0, "SR":0, "DUP":0 };
         r._activeFlags.forEach(flag => {
-          if(flag === "1W") subCounts["1W"]++;
-          if(flag === "SR") subCounts["SR"]++;
-          if(flag === "DUP") subCounts["DUP"]++;
+          if(flag === "1W") {
+            subCounts["1W"]++;
+            subPerDevice[dev]["1W"]++;
+          }
+          if(flag === "SR") {
+            subCounts["SR"]++;
+            subPerDevice[dev]["SR"]++;
+          }
+          if(flag === "DUP") {
+            subCounts["DUP"]++;
+            subPerDevice[dev]["DUP"]++;
+          }
         });
         let tr = win.document.createElement("tr");
         let flagsText = r._activeFlags.join(", ");
@@ -565,6 +578,14 @@ javascript:(function(){
       // Compute estimated valid utterances
       const validCount = totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"];
       summaryHTML += `<p><b>Estimated Valid Utterances:</b> ${validCount}</p>`;
+      // Estimated valid utterances per device
+      summaryHTML += `<h4>Estimated Valid Per Device:</h4><ul>${
+        Object.entries(deviceCount).map(([d, count]) => {
+          const subs = subPerDevice[d] || { "1W":0, "SR":0, "DUP":0 };
+          const valid = count - (subs["1W"] + subs["SR"] + subs["DUP"]);
+          return `<li>${d}: ${valid}</li>`;
+        }).join('')
+      }</ul>`;
       win.document.getElementById("summary").innerHTML = summaryHTML;
       
       // Preserve selected device filter if possible.
