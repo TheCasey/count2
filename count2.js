@@ -407,32 +407,59 @@ let filterStartTs = null, filterEndTs = null;
         justifyContent: 'center', zIndex: '10000'
       });
 
-      // Build modal content
+      // Build suggestion modal content
       const modal = win.document.createElement('div');
       Object.assign(modal.style, {
         background: '#fff', padding: '20px', borderRadius: '8px',
-        maxWidth: '400px', textAlign: 'center'
+        maxWidth: '500px', maxHeight: '80%', overflow: 'auto'
       });
-      modal.innerHTML = `
-        <p>Found <b>${matches.length}</b> matches in current view.(NOTE: THIS IS A FEATURE IN DEVELOPMENT AND MAY NOT BE FULLY ACCURATE)</p>
-        <button id="applyTapBtn" style="margin-right:10px;">Apply TAP Flags</button>
-        <button id="closeTapModalBtn">Cancel</button>
-      `;
+      modal.innerHTML = `<h3>Tap Suggestion Matches (${matches.length})</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #ccc;padding:4px;">Time</th>
+              <th style="border:1px solid #ccc;padding:4px;">Device</th>
+              <th style="border:1px solid #ccc;padding:4px;">Transcript</th>
+              <th style="border:1px solid #ccc;padding:4px;">Suggest TAP?</th>
+            </tr>
+          </thead>
+          <tbody id="tapModalBody"></tbody>
+        </table>
+        <div style="margin-top:10px;text-align:center;">
+          <button id="applyTapBtn" style="margin-right:10px;">Apply Suggestions</button>
+          <button id="cancelTapBtn">Cancel</button>
+        </div>`;
       overlay.appendChild(modal);
       win.document.body.appendChild(overlay);
 
-      // “Apply TAP Flags” logic
+      // Populate table rows with checkboxes
+      const tbody = modal.querySelector('#tapModalBody');
+      matches.forEach((r, i) => {
+        const row = win.document.createElement('tr');
+        const time = et(r.timestamp);
+        const dev = r.device?.deviceName || 'Unknown';
+        row.innerHTML = `
+          <td style="border:1px solid #ccc;padding:4px;">${time}</td>
+          <td style="border:1px solid #ccc;padding:4px;">${dev}</td>
+          <td style="border:1px solid #ccc;padding:4px;">${r._transcript}</td>
+          <td style="border:1px solid #ccc;padding:4px;text-align:center;">
+            <input type="checkbox" data-idx="${records.indexOf(r)}" ${r._overrides.TAP?'checked':''}>
+          </td>`;
+        tbody.appendChild(row);
+      });
+
+      // “Apply Suggestions” logic
       modal.querySelector('#applyTapBtn').onclick = () => {
-        matches.forEach(r => {
-          if (r._overrides.TAP === undefined) r._overrides.TAP = false;
-          r._overrides.TAP = false;  // clear override so TAP will be applied
+        [...tbody.querySelectorAll('input[type=checkbox]')].forEach(cb => {
+          const idx = parseInt(cb.getAttribute('data-idx'), 10);
+          records[idx]._overrides.TAP = cb.checked;
         });
         renderData();
         overlay.remove();
       };
 
       // “Cancel” logic
-      modal.querySelector('#closeTapModalBtn').onclick = () => overlay.remove();
+      modal.querySelector('#cancelTapBtn').onclick = () => overlay.remove();
     };
     // Shared modal helper
     function showModal(winRef, text){
@@ -578,8 +605,8 @@ let filterStartTs = null, filterEndTs = null;
         } else {
           deviceLastTranscript[dev] = transcript;
         }
-        // Apply TAP flag if override is cleared
-        if(!r._overrides.TAP && r._activeFlags.includes('TAP')){
+        // If user has suggested a TAP, show it
+        if(r._overrides.TAP){
           r._activeFlags.push('TAP');
         }
       });
