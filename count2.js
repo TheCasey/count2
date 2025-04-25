@@ -484,8 +484,15 @@ let filterStartTs = null, filterEndTs = null;
           }
         }
         // 2. Short Utterances, only if not already SR
-        let words = transcript.split(/\s+/).filter(w => w.length);
-        if(words.length <= 1 && !r._overrides["1W"] && !r._activeFlags.includes("SR")){
+        let textToCount = lowerTxt;
+        for (let ww of wakeWords) {
+          if (lowerTxt.startsWith(ww)) {
+            textToCount = lowerTxt.slice(ww.length).trim();
+            break;
+          }
+        }
+        let wordCount = textToCount.split(/\s+/).filter(w => w.length).length;
+        if(wordCount <= 1 && !r._overrides["1W"] && !r._activeFlags.includes("SR")){
           r._activeFlags.push("1W");
         }
         // 3. Duplicates, always last
