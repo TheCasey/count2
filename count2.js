@@ -747,42 +747,40 @@ let filterStartTs = null, filterEndTs = null;
       const assignedNonMetis = assignedRaw.filter(d => !metisPattern.test(d));
       const assignedDevices = assignedNonMetis.slice();
       if (assignedMetis.length > 0) assignedDevices.push("Metis (All)");
-      report += `<b>Assigned Devices</b>: ${assignedDevices.join(", ")}\n\n`;
+      report += `<b>Assigned Devices</b>: ${assignedDevices.join(", ")}\n`;
       report += "<b>Recommendation</b>:\n";
 
       // Estimated Valid (overall)
-      report += "<b>Estimated Valid</b>:\n";
+      report += "<b>Estimated Valid</b>:";
       assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
         report += `${dev}: ${valid}\n`;
       });
-      report += "\n";
 
       // Testing Time
-      report += "<b>Testing Time:</b>\n";
+      report += "<b>Testing Time:</b> ";
       const firstValidStr = firstValidTs
         ? new Date(firstValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
         : "N/A";
       const lastValidStr  = lastValidTs
         ? new Date(lastValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
         : "N/A";
-      report += `First Valid: ${firstValidStr}\n`;
-      report += `Last Valid: ${lastValidStr}\n\n`;
- 
-      report += "\n";
+      report += `First Valid: ${firstValidStr} - `;
+      report += `Last Valid: ${lastValidStr}\n`;
       report += "<b>Things to Try</b>:\n";
       report += "<b>Audit Comment</b>:\n";
       report += "<b>Areas of Improvement</b>:\n";
       report += "<b>Tester Contacted?</b>:\n";
-      report += "<b>Tester Acknowledgement/Feedback Screenshot?</b>:\n\n\n";
+      report += "<b>Tester Acknowledgement/Feedback Screenshot?</b>:\n";
       // Daily Overview
+      report += "<b>Daily Usage</b>:\n";
       Object.entries(dailyCount).forEach(([day,c]) => {
         report += `${day}: ${c}\n`;
       });
       // Subtractions section
-      report += "<b>Subtractions</b>:\n\n";
+      report += "<b>Subtractions</b>:\n";
       report += "Total Lines:\n";
       assignedDevices.forEach(dev => {
         report += `${dev}: ${deviceCount[dev]||0}\n`;
@@ -795,7 +793,7 @@ let filterStartTs = null, filterEndTs = null;
                   `  Short Utterance: ${subs["1W"]}\n` +
                   `  System Replacement: ${subs["SR"]}\n` +
                   `  Duplicates: ${subs["DUP"]}\n` +
-                  `  Total: ${tot}\n\n`;
+                  `  Total: ${tot}\n`;
       });
 
       // Estimated Valid again under subtractions
