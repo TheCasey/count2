@@ -469,28 +469,25 @@ let filterStartTs = null, filterEndTs = null;
         } else {
           r._detectedWW = null;
         }
-        let words = transcript.split(/\s+/).filter(w => w.length);
-        if(words.length <= 1 && !r._overrides["1W"]){
-          r._activeFlags.push("1W");
-        }
         let type = r.utteranceType || r.intent || "";
         let isRoutine = type === "ROUTINES_OR_TAP_TO_ALEXA";
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
         if(deviceSettings[dev] === undefined){
           deviceSettings[dev] = { assigned: true, textBased: false };
         }
-        // System Replacement: non-GENERAL, or GENERAL when device is text-based
+        // 1. System Replacement: non-GENERAL, or GENERAL when device is text-based
         if((type !== "GENERAL") || (type === "GENERAL" && deviceSettings[dev].textBased)) {
           // Exempt routines on text-based input devices
           if(!(isRoutine && deviceSettings[dev].textBased) && !r._overrides.SR) {
-            if(r._activeFlags.includes("1W")) {
-              r._activeFlags.push("SR");
-              r._overrides.SR = true; // Auto override if already short
-            } else {
-              r._activeFlags.push("SR");
-            }
+            r._activeFlags.push("SR");
           }
         }
+        // 2. Short Utterances, only if not already SR
+        let words = transcript.split(/\s+/).filter(w => w.length);
+        if(words.length <= 1 && !r._overrides["1W"] && !r._activeFlags.includes("SR")){
+          r._activeFlags.push("1W");
+        }
+        // 3. Duplicates, always last
         if(deviceLastTranscript[dev] && deviceLastTranscript[dev] === transcript && !r._overrides.DUP){
           if(r._activeFlags.includes("1W") || r._activeFlags.includes("SR")){
             r._activeFlags.push("DUP");
