@@ -310,7 +310,6 @@ let filterStartTs = null, filterEndTs = null;
       <div style="margin-top:10px;">
         <button id="generateReportBtn">Generate Report</button>
         <button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button>
-        <button id="tapCheckBtn" style="margin-left:5px;">Tap Check</button>
       </div>
       <hr>
       <h3>Devices</h3>
@@ -359,107 +358,6 @@ let filterStartTs = null, filterEndTs = null;
     win.document.getElementById('exportSubsBtn').onclick = function(){
       const subsText = generateSubtractionsReport();
       showModal(win, subsText);
-    };
-    // Blank dictionary for tapped suggestions
-    const tappedPhrases = ["Plan an event. Start by asking me for details about the event along with my preferences.",
-      "Plan a trip. You are a travel expert. Start by asking me questions about my trip, such as location, dates, and number of people.",
-      "Plan a new workout routine. Start by asking me questions about my fitness goals.",
-      "Plan my meals for the week. You are a dietary expert. Start by asking me questions to help tailor my meal plan, and take into account my dietary restrictions.",
-      "You are a knowledge expert and I want to learn something new. Teach me a random fact that may not be very common knowledge.",
-      "Learn how to cook a new dish",
-      "Help me learn how to better organize my life. You are a helpful life coach. Start by asking me questions to learn more about me and the areas of my life that need organization and types of goals I might want to set, then help me put together a personalized plan to execute on those goals.",
-      "Learn how to best care for something",
-      "Create an image",
-      "Create a reminder",
-      "Create a calendar event. Start by asking questions about event details.",
-      "Create a study guide",
-      "Create a packing list",
-      "Shop for my top deals and tell me why each deal was selected for me",
-      "Shop for gift ideas for my friend. Start by asking me questions about my friend that might help in the gifts search, limit it to 5 ideas, and then tell me why each deal was selected.",
-      "Shop for groceries. Give me personalized grocery recommendations.",
-      "Add items to my shopping list",
-      "Find upcoming events on my calendar",
-      "Find local activities",
-      "Find a good local restaurant and book a table",
-      "Find local event tickets with Ticketmaster. Start by asking me what type of event I am interested in.",
-      "I need help brainstorming healthy meal plans for the week, considering various dietary preferences",
-      "Can you explain to me how you can help me plan a trip?"];
-
-    // Hook up Tap Check button
-    win.document.getElementById('tapCheckBtn').onclick = function(){
-      // Compute visible records and matches
-      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
-      const visibleRecs = records.filter(r => {
-        const dev = r.device?.deviceName || 'Unknown';
-        return deviceFilterVal ? dev === deviceFilterVal : deviceSettings[dev].assigned;
-      });
-      const matches = visibleRecs.filter(r =>
-        tappedPhrases.some(phrase =>
-          phrase && r._transcript.toLowerCase().includes(phrase.toLowerCase())
-        )
-      );
-
-      // Build modal overlay
-      const overlay = win.document.createElement('div');
-      Object.assign(overlay.style, {
-        position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-        background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', zIndex: '10000'
-      });
-
-      // Build suggestion modal content
-      const modal = win.document.createElement('div');
-      Object.assign(modal.style, {
-        background: '#fff', padding: '20px', borderRadius: '8px',
-        maxWidth: '500px', maxHeight: '80%', overflow: 'auto'
-      });
-      modal.innerHTML = `<h3>Tap Suggestion Matches (${matches.length})</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr>
-              <th style="border:1px solid #ccc;padding:4px;">Time</th>
-              <th style="border:1px solid #ccc;padding:4px;">Device</th>
-              <th style="border:1px solid #ccc;padding:4px;">Transcript</th>
-              <th style="border:1px solid #ccc;padding:4px;">Suggest TAP?</th>
-            </tr>
-          </thead>
-          <tbody id="tapModalBody"></tbody>
-        </table>
-        <div style="margin-top:10px;text-align:center;">
-          <button id="applyTapBtn" style="margin-right:10px;">Apply Suggestions</button>
-          <button id="cancelTapBtn">Cancel</button>
-        </div>`;
-      overlay.appendChild(modal);
-      win.document.body.appendChild(overlay);
-
-      // Populate table rows with checkboxes
-      const tbody = modal.querySelector('#tapModalBody');
-      matches.forEach((r, i) => {
-        const row = win.document.createElement('tr');
-        const time = et(r.timestamp);
-        const dev = r.device?.deviceName || 'Unknown';
-        row.innerHTML = `
-          <td style="border:1px solid #ccc;padding:4px;">${time}</td>
-          <td style="border:1px solid #ccc;padding:4px;">${dev}</td>
-          <td style="border:1px solid #ccc;padding:4px;">${r._transcript}</td>
-          <td style="border:1px solid #ccc;padding:4px;text-align:center;">
-            <input type="checkbox" data-idx="${records.indexOf(r)}" ${r._overrides.TAP?'checked':''}>
-          </td>`;
-        tbody.appendChild(row);
-      });
-
-      // “Apply Suggestions” logic
-      modal.querySelector('#applyTapBtn').onclick = () => {
-        [...tbody.querySelectorAll('input[type=checkbox]')].forEach(cb => {
-          const idx = parseInt(cb.getAttribute('data-idx'), 10);
-          records[idx]._overrides.TAP = cb.checked;
-        });
-        renderData();
-        overlay.remove();
-      };
-
-      // “Cancel” logic
-      modal.querySelector('#cancelTapBtn').onclick = () => overlay.remove();
     };
     // Shared modal helper
     function showModal(winRef, text){
@@ -535,8 +433,6 @@ let filterStartTs = null, filterEndTs = null;
       let deviceLastTranscript = {};
       records.forEach(r => {
         r._activeFlags = [];
-        // Prepare for TAP flags (if any)
-        if(r._overrides.TAP === undefined) r._overrides.TAP = false;
         let transcript = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
           let preferredTypes = ["customer-transcript","data-warning-message","replacement-text","asr_replacement_text"];
@@ -604,10 +500,6 @@ let filterStartTs = null, filterEndTs = null;
           }
         } else {
           deviceLastTranscript[dev] = transcript;
-        }
-        // If user has suggested a TAP, show it
-        if(r._overrides.TAP){
-          r._activeFlags.push('TAP');
         }
       });
     }
