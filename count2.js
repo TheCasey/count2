@@ -391,8 +391,35 @@ let filterStartTs = null, filterEndTs = null;
       const devices = deviceFilterVal
         ? [deviceFilterVal]
         : Object.keys(deviceSettings).filter(d => deviceSettings[d].assigned);
+      // Identify Metis devices
+      const metisPattern = /\bMetis\b/;
+      const metisDevices = devices.filter(d => metisPattern.test(d));
+      const nonMetisDevices = devices.filter(d => !metisPattern.test(d));
       const reportLines = ['Detailed Subtractions:'];
-      devices.forEach(dev => {
+      // Aggregate Metis (All)
+      if (metisDevices.length > 0) {
+        const metisRecs = records.filter(r => metisPattern.test(r.device?.deviceName || 'Unknown') && devices.includes(r.device?.deviceName || 'Unknown'));
+        const shortList = [];
+        const srList = [];
+        const dupList = [];
+        metisRecs.forEach(r => {
+          if (r._activeFlags.includes('1W')) shortList.push(r._transcript);
+          if (r._activeFlags.includes('SR')) {
+            const typeLabel = r.utteranceType || r.intent || '';
+            srList.push(`${r._transcript} (${typeLabel})`);
+          }
+          if (r._activeFlags.includes('DUP')) dupList.push(r._transcript);
+        });
+        reportLines.push('', `Device: Metis (All)`);
+        reportLines.push(`Short Utterances: ${shortList.length}`);
+        shortList.forEach(item => reportLines.push(item));
+        reportLines.push(`System Replacement: ${srList.length}`);
+        srList.forEach(item => reportLines.push(item));
+        reportLines.push(`Duplicates: ${dupList.length}`);
+        dupList.forEach(item => reportLines.push(item));
+      }
+      // Non-Metis devices
+      nonMetisDevices.forEach(dev => {
         reportLines.push('', `Device: ${dev}`);
         // Gather records for this device
         const devRecs = records.filter(r => (r.device?.deviceName || 'Unknown') === dev);
@@ -401,18 +428,13 @@ let filterStartTs = null, filterEndTs = null;
         const srList = [];
         const dupList = [];
         devRecs.forEach(r => {
-          if (r._activeFlags.includes('1W')) {
-            shortList.push(r._transcript);
-          }
+          if (r._activeFlags.includes('1W')) shortList.push(r._transcript);
           if (r._activeFlags.includes('SR')) {
             const typeLabel = r.utteranceType || r.intent || '';
             srList.push(`${r._transcript} (${typeLabel})`);
           }
-          if (r._activeFlags.includes('DUP')) {
-            dupList.push(r._transcript);
-          }
+          if (r._activeFlags.includes('DUP')) dupList.push(r._transcript);
         });
-        // Append counts and details
         reportLines.push(`Short Utterances: ${shortList.length}`);
         shortList.forEach(item => reportLines.push(item));
         reportLines.push(`System Replacement: ${srList.length}`);
@@ -684,22 +706,28 @@ let filterStartTs = null, filterEndTs = null;
       });
       if(visibleRecords.length === 0) return "No records available for report.";
 
+      // Identify Metis pattern
+      const metisPattern = /\bMetis\b/;
+
       // Aggregate counts
       const deviceCount = {}, dailyCount = {}, subPerDevice = {};
       let firstValidTs = null, lastValidTs = null;
       visibleRecords.forEach(r => {
         const dev = r.device?.deviceName || "Unknown";
-        deviceCount[dev] = (deviceCount[dev]||0) + 1;
+        // Bucket for Metis (All)
+        const isMetis = metisPattern.test(dev);
+        const bucket = isMetis ? "Metis (All)" : dev;
+        deviceCount[bucket] = (deviceCount[bucket]||0) + 1;
         const dateKey = new Date(r.timestamp)
           .toLocaleDateString("en-US",{timeZone:"America/New_York"});
         dailyCount[dateKey] = (dailyCount[dateKey]||0) + 1;
         if(!firstValidTs || r.timestamp < firstValidTs) firstValidTs = r.timestamp;
         if(!lastValidTs  || r.timestamp > lastValidTs)  lastValidTs  = r.timestamp;
-        subPerDevice[dev] = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
+        subPerDevice[bucket] = subPerDevice[bucket] || {"1W":0,"SR":0,"DUP":0};
         r._activeFlags.forEach(flag => {
-          if(flag === "1W") subPerDevice[dev]["1W"]++;
-          if(flag === "SR") subPerDevice[dev]["SR"]++;
-          if(flag === "DUP") subPerDevice[dev]["DUP"]++;
+          if(flag === "1W") subPerDevice[bucket]["1W"]++;
+          if(flag === "SR") subPerDevice[bucket]["SR"]++;
+          if(flag === "DUP") subPerDevice[bucket]["DUP"]++;
         });
       });
 
@@ -710,16 +738,21 @@ let filterStartTs = null, filterEndTs = null;
         .toLocaleString("en-US",{timeZone:"America/New_York"});
       let report = `<b>Week</b>: ${startStr} - ${endStr}\n`;
 
-      // Assigned devices
-      const assigned = Object.entries(deviceSettings)
+      // Assigned devices (merge Metis variants)
+      const assignedRaw = Object.entries(deviceSettings)
         .filter(([d,s])=>s.assigned)
         .map(([d])=>d);
-      report += `<b>Assigned Devices</b>: ${assigned.join(", ")}\n\n`;
+      // Partition assigned devices into Metis and non-Metis
+      const assignedMetis = assignedRaw.filter(d => metisPattern.test(d));
+      const assignedNonMetis = assignedRaw.filter(d => !metisPattern.test(d));
+      const assignedDevices = assignedNonMetis.slice();
+      if (assignedMetis.length > 0) assignedDevices.push("Metis (All)");
+      report += `<b>Assigned Devices</b>: ${assignedDevices.join(", ")}\n\n`;
       report += "<b>Recommendation</b>:\n";
 
       // Estimated Valid (overall)
       report += "<b>Estimated Valid</b>:\n";
-      assigned.forEach(dev => {
+      assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
@@ -751,11 +784,11 @@ let filterStartTs = null, filterEndTs = null;
       // Subtractions section
       report += "<b>Subtractions</b>:\n\n";
       report += "Total Lines:\n";
-      assigned.forEach(dev => {
+      assignedDevices.forEach(dev => {
         report += `${dev}: ${deviceCount[dev]||0}\n`;
       });
       report += "\n";
-      assigned.forEach(dev => {
+      assignedDevices.forEach(dev => {
         const subs = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const tot = subs["1W"] + subs["SR"] + subs["DUP"];
         report += `${dev}:\n` +
@@ -767,7 +800,7 @@ let filterStartTs = null, filterEndTs = null;
 
       // Estimated Valid again under subtractions
       report += "Estimated Valid:\n";
-      assigned.forEach(dev => {
+      assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
