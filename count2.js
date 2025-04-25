@@ -715,6 +715,7 @@ let filterStartTs = null, filterEndTs = null;
         .filter(([d,s])=>s.assigned)
         .map(([d])=>d);
       report += `<b>Assigned Devices</b>: ${assigned.join(", ")}\n\n`;
+      report += "<b>Recommendation</b>:\n";
 
       // Estimated Valid (overall)
       report += "<b>Estimated Valid</b>:\n";
@@ -736,18 +737,17 @@ let filterStartTs = null, filterEndTs = null;
         : "N/A";
       report += `First Valid: ${firstValidStr}\n`;
       report += `Last Valid: ${lastValidStr}\n\n`;
-
-      // Daily Overview
-      Object.entries(dailyCount).forEach(([day,c]) => {
-        report += `${day}: ${c}\n`;
-      });
+ 
       report += "\n";
-      report += "<b>Recommendation</b>:\n";
       report += "<b>Things to Try</b>:\n";
       report += "<b>Audit Comment</b>:\n";
       report += "<b>Areas of Improvement</b>:\n";
       report += "<b>Tester Contacted?</b>:\n";
       report += "<b>Tester Acknowledgement/Feedback Screenshot?</b>:\n\n\n";
+      // Daily Overview
+      Object.entries(dailyCount).forEach(([day,c]) => {
+        report += `${day}: ${c}\n`;
+      });
       // Subtractions section
       report += "<b>Subtractions</b>:\n\n";
       report += "Total Lines:\n";
