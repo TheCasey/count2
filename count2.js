@@ -316,6 +316,7 @@ let filterStartTs = null, filterEndTs = null;
       <div id="deviceList"></div>
     </div>
     <div id="rightPanel">
+      <p id="recordCount" style="margin-bottom:10px;font-weight:bold;"></p>
       <button id="expandAll" style="margin-bottom:10px">Expand All</button>
       <div id="filtersContainer" style="display:flex;gap:5px;margin-bottom:10px;">
         <div class="filterRow" style="display:flex;gap:4px;">
@@ -611,8 +612,8 @@ let filterStartTs = null, filterEndTs = null;
       summaryHTML += `
         <h4>Subtractions:</h4>
         <ul>
-          <li>Short Utterances: ${subCounts["1W"]} <span class="viewBtn" data-cat="1W">(view)</span></li>
           <li>System Replacement: ${subCounts["SR"]} <span class="viewBtn" data-cat="SR">(view)</span></li>
+          <li>Short Utterances: ${subCounts["1W"]} <span class="viewBtn" data-cat="1W">(view)</span></li>
           <li>Duplicates: ${subCounts["DUP"]} <span class="viewBtn" data-cat="DUP">(view)</span></li>
         </ul>
       `;
@@ -631,6 +632,12 @@ let filterStartTs = null, filterEndTs = null;
         }).join('')
       }</ul>`;
       win.document.getElementById("summary").innerHTML = summaryHTML;
+
+      // Update record count at the top of #rightPanel
+      const recordCountElem = win.document.getElementById("recordCount");
+      if (recordCountElem) {
+        recordCountElem.textContent = `Showing ${visibleRecords.length} records`;
+      }
       
       // Preserve selected device filter if possible.
       let currentVal = deviceFilter.value;
