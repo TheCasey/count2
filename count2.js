@@ -309,6 +309,7 @@ let filterStartTs = null, filterEndTs = null;
       <div id="summary"></div>
       <div style="margin-top:10px;">
         <button id="generateReportBtn">Generate Report</button>
+        <button id="subtractionsReportBtn" style="margin-left:5px;">Subtractions Report</button>
         <button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button>
       </div>
       <hr>
@@ -354,6 +355,11 @@ let filterStartTs = null, filterEndTs = null;
     win.document.getElementById('generateReportBtn').onclick = function(){
       const reportText = generateReport();
       showModal(win, reportText);
+    };
+    // Hook up Subtractions Report button
+    win.document.getElementById('subtractionsReportBtn').onclick = function(){
+      const subsSummary = generateSubtractionsSummaryReport();
+      showModal(win, subsSummary);
     };
     // Hook up Export Subtractions button
     win.document.getElementById('exportSubsBtn').onclick = function(){
@@ -1007,3 +1013,44 @@ let filterStartTs = null, filterEndTs = null;
     };
   }
 })();
+
+    // Generate a summary subtractions report per device/category
+    function generateSubtractionsSummaryReport(){
+      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
+      const visibleRecords = records.filter(r=>{
+        const dev = r.device?.deviceName || "Unknown";
+        if(deviceFilterVal !== ""){
+          return dev === deviceFilterVal;
+        } else {
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
+        }
+      });
+      if(visibleRecords.length === 0) return "No records available for subtractions report.";
+
+      const metisPattern = /\bMetis\b/;
+      const deviceCount = {}, subPerDevice = {};
+
+      visibleRecords.forEach(r => {
+        const dev = r.device?.deviceName || "Unknown";
+        const bucket = metisPattern.test(dev) ? "Metis (All)" : dev;
+        deviceCount[bucket] = (deviceCount[bucket]||0) + 1;
+        subPerDevice[bucket] = subPerDevice[bucket] || {"1W":0,"SR":0,"DUP":0};
+        r._activeFlags.forEach(flag => {
+          if(flag === "1W") subPerDevice[bucket]["1W"]++;
+          if(flag === "SR") subPerDevice[bucket]["SR"]++;
+          if(flag === "DUP") subPerDevice[bucket]["DUP"]++;
+        });
+      });
+
+      let report = `<b>Subtractions Summary</b>:\n\n`;
+      Object.entries(subPerDevice).forEach(([dev, subs]) => {
+        const total = (subs["1W"]||0)+(subs["SR"]||0)+(subs["DUP"]||0);
+        report += `<b>${dev}</b>:\n`
+                + `  Short Utterance: ${subs["1W"]}\n`
+                + `  System Replacement: ${subs["SR"]}\n`
+                + `  Duplicates: ${subs["DUP"]}\n`
+                + `  Total: ${total}\n\n`;
+      });
+
+      return report;
+    }
