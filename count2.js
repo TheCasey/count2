@@ -1052,5 +1052,5 @@ let filterStartTs = null, filterEndTs = null;
                 + `  Total: ${total}\n\n`;
       });
 
-      return report;
+      return report.replace(/\n/g, '<br>');
     }
