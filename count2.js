@@ -358,8 +358,8 @@ let filterStartTs = null, filterEndTs = null;
     };
     // Hook up Subtractions Report button
     win.document.getElementById('subtractionsReportBtn').onclick = function(){
-      const subsSummary = generateSubtractionsSummaryReport();
-      showModal(win, subsSummary);
+      const reportText = generateSubtractionsSummaryReport();
+      showModal(win, reportText);
     };
     // Hook up Export Subtractions button
     win.document.getElementById('exportSubsBtn').onclick = function(){
@@ -1052,5 +1052,5 @@ let filterStartTs = null, filterEndTs = null;
                 + `  Total: ${total}\n\n`;
       });
 
-      return report.replace(/\n/g, '<br>');
+      return report;
     }
