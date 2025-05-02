@@ -534,6 +534,13 @@ let filterStartTs = null, filterEndTs = null;
         } else {
           deviceLastTranscript[dev] = transcript;
         }
+        // Remove auto-overridden flags from counts
+        ["1W", "SR", "DUP"].forEach(flag => {
+          if (r._overrides[flag]) {
+            const index = r._activeFlags.indexOf(flag);
+            if (index > -1) r._activeFlags.splice(index, 1);
+          }
+        });
       });
     }
 
