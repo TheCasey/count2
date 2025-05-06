@@ -206,12 +206,60 @@ let filterStartTs = null, filterEndTs = null;
       <input type="number" id="endMin" min="0" max="59" value="0" style="width:40px;">
       <select id="endAMPM"><option selected>PM</option><option>AM</option></select><br><br>
       <button id="fetchBtn">📡 Fetch Utterances</button><br><br>
+      <button id="breakdownBtn">📊 Usage Breakdown</button><br><br>
       <button id="htmlBtn" disabled>🧾 Open Filtered Page</button>
       <pre id="fetchLog" style="max-height:120px;overflow:auto;margin-top:10px;background:#f0f0f0;padding:6px;border-radius:6px;"></pre>
     `;
     document.body.appendChild(panel);
     document.getElementById("fetchBtn").onclick = fetchUtterances;
     document.getElementById("htmlBtn").onclick = openFilteredPage;
+    document.getElementById("breakdownBtn").onclick = function(){
+      if(records.length === 0){
+        alert("No utterances have been fetched yet.");
+        return;
+      }
+      const breakdown = {};
+      records.forEach(r => {
+        const dt = new Date(r.timestamp);
+        const dateKey = dt.toLocaleDateString("en-US",{timeZone:"America/New_York"});
+        const hourKey = dt.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          hour12: true,
+          timeZone: "America/New_York"
+        }).replace(/:.*$/, ":00");
+        if(!breakdown[dateKey]) breakdown[dateKey] = {};
+        if(!breakdown[dateKey][hourKey]) breakdown[dateKey][hourKey] = 0;
+        breakdown[dateKey][hourKey]++;
+      });
+      let lines = ["<b>Daily Usage (ET):</b>"];
+      Object.entries(breakdown).forEach(([date, hours])=>{
+        const total = Object.values(hours).reduce((a,b)=>a+b,0);
+        lines.push(`${date}: ${total}`);
+        Object.entries(hours).sort((a,b)=>new Date('1/1/1970 '+a[0]) - new Date('1/1/1970 '+b[0]))
+          .forEach(([hour, count])=>{
+            lines.push(`  ${hour}: ${count}`);
+          });
+      });
+      const overlay = document.createElement('div');
+      overlay.style = 'position:fixed;top:0;left:0;width:100%;height:100%;'
+                    + 'background:rgba(0,0,0,0.5);display:flex;align-items:center;'
+                    + 'justify-content:center;z-index:10000;';
+      const container = document.createElement('div');
+      container.style = 'background:#fff;padding:20px;border-radius:8px;'
+                      + 'max-width:600px;max-height:80%;overflow:auto;';
+      const contentDiv = document.createElement('div');
+      contentDiv.contentEditable = true;
+      contentDiv.style = 'width:100%; height:300px; overflow:auto; white-space:pre-wrap; border:1px solid #ccc; padding:4px;';
+      contentDiv.innerHTML = lines.join('<br>');
+      container.appendChild(contentDiv);
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = 'Close';
+      closeBtn.style = 'margin-top:10px;';
+      closeBtn.onclick = () => overlay.remove();
+      container.appendChild(closeBtn);
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
+    };
   })();
 
   function getTimestamp(dateVal, hourVal, minVal, ampm) {
