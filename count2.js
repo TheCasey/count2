@@ -213,33 +213,16 @@ let filterStartTs = null, filterEndTs = null;
     document.body.appendChild(panel);
     document.getElementById("fetchBtn").onclick = fetchUtterances;
     document.getElementById("htmlBtn").onclick = openFilteredPage;
-    document.getElementById("breakdownBtn").onclick = function(){
+    document.getElementById("breakdownBtn").onclick = function() {
       if(records.length === 0){
         alert("No utterances have been fetched yet.");
         return;
       }
-      const breakdown = {};
-      records.forEach(r => {
-        const dt = new Date(r.timestamp);
-        const dateKey = dt.toLocaleDateString("en-US",{timeZone:"America/New_York"});
-        const hourKey = dt.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          hour12: true,
-          timeZone: "America/New_York"
-        }).replace(/:.*$/, ":00");
-        if(!breakdown[dateKey]) breakdown[dateKey] = {};
-        if(!breakdown[dateKey][hourKey]) breakdown[dateKey][hourKey] = 0;
-        breakdown[dateKey][hourKey]++;
-      });
-      let lines = ["<b>Daily Usage (ET):</b>"];
-      Object.entries(breakdown).forEach(([date, hours])=>{
-        const total = Object.values(hours).reduce((a,b)=>a+b,0);
-        lines.push(`${date}: ${total}`);
-        Object.entries(hours).sort((a,b)=>new Date('1/1/1970 '+a[0]) - new Date('1/1/1970 '+b[0]))
-          .forEach(([hour, count])=>{
-            lines.push(`  ${hour}: ${count}`);
-          });
-      });
+      // Build device options: group Metis variants as "Metis (All)"
+      const deviceOptions = [...new Set(records.map(r => {
+        const dev = r.device?.deviceName || "Unknown";
+        return /\bMetis\b/.test(dev) ? "Metis (All)" : dev;
+      }))];
       const overlay = document.createElement('div');
       overlay.style = 'position:fixed;top:0;left:0;width:100%;height:100%;'
                     + 'background:rgba(0,0,0,0.5);display:flex;align-items:center;'
@@ -247,10 +230,60 @@ let filterStartTs = null, filterEndTs = null;
       const container = document.createElement('div');
       container.style = 'background:#fff;padding:20px;border-radius:8px;'
                       + 'max-width:600px;max-height:80%;overflow:auto;';
+      // Create contentDiv for breakdown lines
       const contentDiv = document.createElement('div');
       contentDiv.contentEditable = true;
       contentDiv.style = 'width:100%; height:300px; overflow:auto; white-space:pre-wrap; border:1px solid #ccc; padding:4px;';
-      contentDiv.innerHTML = lines.join('<br>');
+      // Create device dropdown
+      const dropdown = document.createElement('select');
+      // Add "All Devices" option
+      const allOpt = document.createElement('option');
+      allOpt.value = '';
+      allOpt.textContent = 'All Devices';
+      dropdown.appendChild(allOpt);
+      deviceOptions.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        dropdown.appendChild(opt);
+      });
+      dropdown.style = 'margin-bottom:10px;';
+      // Helper to regenerate breakdown content
+      function updateBreakdownView(deviceFilter) {
+        // Group by day/hour per device, then filter by selected device
+        const breakdown = {};
+        records.forEach(r => {
+          const dev = r.device?.deviceName || "Unknown";
+          const bucket = /\bMetis\b/.test(dev) ? "Metis (All)" : dev;
+          if (deviceFilter && bucket !== deviceFilter) return;
+          const dt = new Date(r.timestamp);
+          const dateKey = dt.toLocaleDateString("en-US",{timeZone:"America/New_York"});
+          const hourKey = dt.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            hour12: true,
+            timeZone: "America/New_York"
+          }).replace(/:.*$/, ":00");
+          if(!breakdown[dateKey]) breakdown[dateKey] = {};
+          if(!breakdown[dateKey][hourKey]) breakdown[dateKey][hourKey] = 0;
+          breakdown[dateKey][hourKey]++;
+        });
+        const lines = ["<b>Daily Usage (ET):</b>"];
+        Object.entries(breakdown).forEach(([date, hours]) => {
+          const total = Object.values(hours).reduce((a,b)=>a+b,0);
+          lines.push(`${date}: ${total}`);
+          Object.entries(hours).sort((a,b)=>new Date('1/1/1970 '+a[0]) - new Date('1/1/1970 '+b[0]))
+            .forEach(([hour, count]) => {
+              lines.push(`  ${hour}: ${count}`);
+            });
+        });
+        contentDiv.innerHTML = lines.join('<br>');
+      }
+      // Bind dropdown change to update breakdown view
+      dropdown.onchange = () => {
+        updateBreakdownView(dropdown.value || null);
+      };
+      // Insert dropdown above contentDiv
+      container.appendChild(dropdown);
       container.appendChild(contentDiv);
       const closeBtn = document.createElement('button');
       closeBtn.textContent = 'Close';
@@ -259,6 +292,8 @@ let filterStartTs = null, filterEndTs = null;
       container.appendChild(closeBtn);
       overlay.appendChild(container);
       document.body.appendChild(overlay);
+      // Initialize with all devices (null filter)
+      updateBreakdownView(null);
     };
   })();
 
