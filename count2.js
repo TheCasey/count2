@@ -1063,23 +1063,16 @@ let filterStartTs = null, filterEndTs = null;
         let visible = true;
         filters.forEach(fr => {
           const field = fr.querySelector('.filterField').value;
-          // For time, use two inputs
           if(field === 'time') {
-            const startInput = fr.querySelector('.filterTimeStart');
-            const endInput = fr.querySelector('.filterTimeEnd');
+            // New time filter logic: use datetime-local inputs and compare full datetime
+            const startInput = fr.querySelector('.filterDateTimeStart');
+            const endInput = fr.querySelector('.filterDateTimeEnd');
             const rowTimeStr = row.cells[1].innerText.trim();
-            // Extract only the time part (e.g., "4/3/2024, 1:30 PM" → "1:30 PM")
-            const timeMatch = rowTimeStr.match(/(\d{1,2}:\d{2}\s*[AP]M)/i);
-            let rowMinutes = null;
-            if (timeMatch) rowMinutes = timeStringToMinutes(timeMatch[1]);
-            let startVal = startInput.value;
-            let endVal = endInput.value;
-            let startMinutes = startVal ? timeStringToMinutes(startVal) : null;
-            let endMinutes = endVal ? timeStringToMinutes(endVal) : null;
-            // If either is missing, skip filter
-            if (startMinutes != null && endMinutes != null && rowMinutes != null) {
-              // If end < start, treat as no match
-              if (!(rowMinutes >= startMinutes && rowMinutes <= endMinutes)) visible = false;
+            const rowTime = new Date(rowTimeStr);
+            const startTime = startInput.value ? new Date(startInput.value) : null;
+            const endTime = endInput.value ? new Date(endInput.value) : null;
+            if (startTime && endTime) {
+              if (!(rowTime >= startTime && rowTime <= endTime)) visible = false;
             }
           } else {
             const input = fr.querySelector('.filterInput').value.toLowerCase();
@@ -1114,7 +1107,7 @@ let filterStartTs = null, filterEndTs = null;
       let field = fr.querySelector('.filterField');
       const removeBtn = fr.querySelector('.removeFilterBtn');
 
-      // Helper to create time range inputs
+      // Helper to create time range inputs (datetime-local)
       function setTimeInputs() {
         // Remove previous inputs
         let oldInput = fr.querySelector('.filterInput');
@@ -1123,15 +1116,20 @@ let filterStartTs = null, filterEndTs = null;
         if (oldStart) oldStart.remove();
         let oldEnd = fr.querySelector('.filterTimeEnd');
         if (oldEnd) oldEnd.remove();
-        // Insert two time inputs (text, with placeholder for "h:mm AM/PM")
+        let oldDateStart = fr.querySelector('.filterDateTimeStart');
+        if (oldDateStart) oldDateStart.remove();
+        let oldDateEnd = fr.querySelector('.filterDateTimeEnd');
+        if (oldDateEnd) oldDateEnd.remove();
+        // Insert two datetime-local inputs
         const start = win.document.createElement('input');
-        start.className = 'filterTimeStart';
-        start.placeholder = 'Start (e.g. 1:00 PM)';
-        start.style = 'width:95px;padding:5px;';
+        start.type = 'datetime-local';
+        start.className = 'filterDateTimeStart';
+        start.style = 'width:180px;padding:5px;';
+
         const end = win.document.createElement('input');
-        end.className = 'filterTimeEnd';
-        end.placeholder = 'End (e.g. 5:00 PM)';
-        end.style = 'width:95px;padding:5px;';
+        end.type = 'datetime-local';
+        end.className = 'filterDateTimeEnd';
+        end.style = 'width:180px;padding:5px;';
         // Insert before select
         fr.insertBefore(start, field);
         fr.insertBefore(end, field);
@@ -1145,6 +1143,10 @@ let filterStartTs = null, filterEndTs = null;
         if (oldStart) oldStart.remove();
         let oldEnd = fr.querySelector('.filterTimeEnd');
         if (oldEnd) oldEnd.remove();
+        let oldDateStart = fr.querySelector('.filterDateTimeStart');
+        if (oldDateStart) oldDateStart.remove();
+        let oldDateEnd = fr.querySelector('.filterDateTimeEnd');
+        if (oldDateEnd) oldDateEnd.remove();
         let oldInput = fr.querySelector('.filterInput');
         if (!oldInput) {
           // Create new input and insert before select
