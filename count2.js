@@ -1041,41 +1041,138 @@ let filterStartTs = null, filterEndTs = null;
     renderData();
     renderDeviceSettings();
 
+    // Utility: Convert "1:30 PM" or "09:15 AM" to minutes since midnight
+    function timeStringToMinutes(timeStr) {
+      // Accepts "h:mm AM/PM" or "hh:mm AM/PM"
+      const m = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*([AP]M)\s*$/i);
+      if (!m) return null;
+      let hour = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ampm = m[3].toUpperCase();
+      if (ampm === "PM" && hour !== 12) hour += 12;
+      if (ampm === "AM" && hour === 12) hour = 0;
+      return hour * 60 + min;
+    }
+
     // Multi‐filter functionality
     function applyFilters(){
       const filters = [...win.document.querySelectorAll('#filtersContainer .filterRow')];
       const rows = [...win.document.querySelectorAll('#tableBody tr')].filter(r => !r.id);
+      let visibleCount = 0;
       rows.forEach(row => {
         let visible = true;
         filters.forEach(fr => {
-          const input = fr.querySelector('.filterInput').value.toLowerCase();
           const field = fr.querySelector('.filterField').value;
-          if(input){
-            let text = '';
-            if(field === 'any') {
-              text = row.innerText.toLowerCase();
-            } else if(field === 'time') {
-              text = row.cells[1].innerText.toLowerCase();
-            } else if(field === 'type') {
-              text = row.cells[5].innerText.toLowerCase();
-            } else if(field === 'transcript') {
-              text = row.cells[4].innerText.toLowerCase();
+          // For time, use two inputs
+          if(field === 'time') {
+            const startInput = fr.querySelector('.filterTimeStart');
+            const endInput = fr.querySelector('.filterTimeEnd');
+            const rowTimeStr = row.cells[1].innerText.trim();
+            // Extract only the time part (e.g., "4/3/2024, 1:30 PM" → "1:30 PM")
+            const timeMatch = rowTimeStr.match(/(\d{1,2}:\d{2}\s*[AP]M)/i);
+            let rowMinutes = null;
+            if (timeMatch) rowMinutes = timeStringToMinutes(timeMatch[1]);
+            let startVal = startInput.value;
+            let endVal = endInput.value;
+            let startMinutes = startVal ? timeStringToMinutes(startVal) : null;
+            let endMinutes = endVal ? timeStringToMinutes(endVal) : null;
+            // If either is missing, skip filter
+            if (startMinutes != null && endMinutes != null && rowMinutes != null) {
+              // If end < start, treat as no match
+              if (!(rowMinutes >= startMinutes && rowMinutes <= endMinutes)) visible = false;
             }
-            if(!text.includes(input)) visible = false;
+          } else {
+            const input = fr.querySelector('.filterInput').value.toLowerCase();
+            if(input){
+              let text = '';
+              if(field === 'any') {
+                text = row.innerText.toLowerCase();
+              } else if(field === 'type') {
+                text = row.cells[5].innerText.toLowerCase();
+              } else if(field === 'transcript') {
+                text = row.cells[4].innerText.toLowerCase();
+              }
+              if(field !== 'any' && field !== 'type' && field !== 'transcript') return;
+              if(!text.includes(input)) visible = false;
+            }
           }
         });
         row.style.display = visible ? '' : 'none';
         const next = row.nextElementSibling;
         if(next && next.id && next.id.startsWith('resp')) next.style.display = 'none';
+        if (visible) visibleCount++;
       });
+      // Update record count
+      const recordCountElem = win.document.getElementById("recordCount");
+      if (recordCountElem) {
+        recordCountElem.textContent = `Showing ${visibleCount} records`;
+      }
     }
 
     function bindFilterEvents(fr){
-      const input = fr.querySelector('.filterInput');
-      const field = fr.querySelector('.filterField');
+      let input = fr.querySelector('.filterInput');
+      let field = fr.querySelector('.filterField');
       const removeBtn = fr.querySelector('.removeFilterBtn');
-      input.oninput = applyFilters;
-      field.onchange = applyFilters;
+
+      // Helper to create time range inputs
+      function setTimeInputs() {
+        // Remove previous inputs
+        let oldInput = fr.querySelector('.filterInput');
+        if (oldInput) oldInput.remove();
+        let oldStart = fr.querySelector('.filterTimeStart');
+        if (oldStart) oldStart.remove();
+        let oldEnd = fr.querySelector('.filterTimeEnd');
+        if (oldEnd) oldEnd.remove();
+        // Insert two time inputs (text, with placeholder for "h:mm AM/PM")
+        const start = win.document.createElement('input');
+        start.className = 'filterTimeStart';
+        start.placeholder = 'Start (e.g. 1:00 PM)';
+        start.style = 'width:95px;padding:5px;';
+        const end = win.document.createElement('input');
+        end.className = 'filterTimeEnd';
+        end.placeholder = 'End (e.g. 5:00 PM)';
+        end.style = 'width:95px;padding:5px;';
+        // Insert before select
+        fr.insertBefore(start, field);
+        fr.insertBefore(end, field);
+        start.oninput = applyFilters;
+        end.oninput = applyFilters;
+      }
+
+      function setTextInput() {
+        // Remove previous inputs
+        let oldStart = fr.querySelector('.filterTimeStart');
+        if (oldStart) oldStart.remove();
+        let oldEnd = fr.querySelector('.filterTimeEnd');
+        if (oldEnd) oldEnd.remove();
+        let oldInput = fr.querySelector('.filterInput');
+        if (!oldInput) {
+          // Create new input and insert before select
+          oldInput = win.document.createElement('input');
+          oldInput.className = 'filterInput';
+          oldInput.placeholder = 'Search...';
+          oldInput.style = 'flex:1;padding:5px;';
+          fr.insertBefore(oldInput, field);
+        }
+        oldInput.oninput = applyFilters;
+      }
+
+      // Switch input fields on filter type change
+      field.onchange = function() {
+        if (field.value === 'time') {
+          setTimeInputs();
+        } else {
+          setTextInput();
+        }
+        applyFilters();
+      };
+
+      // Initial bind
+      if (field.value === 'time') {
+        setTimeInputs();
+      } else {
+        setTextInput();
+      }
       removeBtn.onclick = () => { fr.remove(); applyFilters(); };
     }
 
