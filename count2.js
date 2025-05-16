@@ -193,22 +193,23 @@ let filterStartTs = null, filterEndTs = null;
   (function createUIPanel(){
     let panel = document.createElement("div");
     panel.style = "position:fixed;top:10px;left:10px;z-index:99999;background:#fff;padding:12px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.4);font-family:sans-serif;width:330px;font-size:14px;";
-    panel.innerHTML = 
-      '<b>🗓️ Custom Alexa Utterance Export</b><br><br>' +
-      '<label>Start Date (ET):</label><br>' +
-      '<input type="date" id="startDate"><br>' +
-      '<input type="number" id="startHour" min="1" max="12" value="8" style="width:40px;"> :' +
-      '<input type="number" id="startMin" min="0" max="59" value="0" style="width:40px;">' +
-      '<select id="startAMPM"><option>AM</option><option selected>PM</option></select><br><br>' +
-      '<label>End Date (ET):</label><br>' +
-      '<input type="date" id="endDate"><br>' +
-      '<input type="number" id="endHour" min="1" max="12" value="6" style="width:40px;"> :' +
-      '<input type="number" id="endMin" min="0" max="59" value="0" style="width:40px;">' +
-      '<select id="endAMPM"><option selected>PM</option><option>AM</option></select><br><br>' +
-      '<button id="fetchBtn">📡 Fetch Utterances</button><br><br>' +
-      '<button id="breakdownBtn">📊 Usage Breakdown</button><br><br>' +
-      '<button id="htmlBtn" disabled>🧾 Open Filtered Page</button>' +
-      '<pre id="fetchLog" style="max-height:120px;overflow:auto;margin-top:10px;background:#f0f0f0;padding:6px;border-radius:6px;"></pre>';
+    panel.innerHTML = `
+      <b>🗓️ Custom Alexa Utterance Export</b><br><br>
+      <label>Start Date (ET):</label><br>
+      <input type="date" id="startDate"><br>
+      <input type="number" id="startHour" min="1" max="12" value="8" style="width:40px;"> :
+      <input type="number" id="startMin" min="0" max="59" value="0" style="width:40px;">
+      <select id="startAMPM"><option>AM</option><option selected>PM</option></select><br><br>
+      <label>End Date (ET):</label><br>
+      <input type="date" id="endDate"><br>
+      <input type="number" id="endHour" min="1" max="12" value="6" style="width:40px;"> :
+      <input type="number" id="endMin" min="0" max="59" value="0" style="width:40px;">
+      <select id="endAMPM"><option selected>PM</option><option>AM</option></select><br><br>
+      <button id="fetchBtn">📡 Fetch Utterances</button><br><br>
+      <button id="breakdownBtn">📊 Usage Breakdown</button><br><br>
+      <button id="htmlBtn" disabled>🧾 Open Filtered Page</button>
+      <pre id="fetchLog" style="max-height:120px;overflow:auto;margin-top:10px;background:#f0f0f0;padding:6px;border-radius:6px;"></pre>
+    `;
     document.body.appendChild(panel);
     document.getElementById("fetchBtn").onclick = fetchUtterances;
     document.getElementById("htmlBtn").onclick = openFilteredPage;
@@ -249,6 +250,7 @@ let filterStartTs = null, filterEndTs = null;
       dropdown.style = 'margin-bottom:10px;';
       // Helper to regenerate breakdown content
       function updateBreakdownView(deviceFilter) {
+        // Group by day/hour per device, then filter by selected device
         const breakdown = {};
         records.forEach(r => {
           const dev = r.device?.deviceName || "Unknown";
@@ -268,10 +270,10 @@ let filterStartTs = null, filterEndTs = null;
         const lines = ["<b>Daily Usage (ET):</b>"];
         Object.entries(breakdown).forEach(([date, hours]) => {
           const total = Object.values(hours).reduce((a,b)=>a+b,0);
-          lines.push(date + ': ' + total);
+          lines.push(`${date}: ${total}`);
           Object.entries(hours).sort((a,b)=>new Date('1/1/1970 '+a[0]) - new Date('1/1/1970 '+b[0]))
             .forEach(([hour, count]) => {
-              lines.push('  ' + hour + ': ' + count);
+              lines.push(`  ${hour}: ${count}`);
             });
         });
         contentDiv.innerHTML = lines.join('<br>');
@@ -335,16 +337,12 @@ let filterStartTs = null, filterEndTs = null;
     
     let startTs = getTimestamp(startDateVal, startHour, startMin, startAMPM);
     let endTs = getTimestamp(endDateVal, endHour, endMin, endAMPM);
-    if(!confirm('Fetch Alexa utterances between:\nStart: ' + 
-        new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"}) + 
-        '\nEnd: ' + new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"}) + 
-        '?')){
+    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
       return;
     }
     filterStartTs = startTs;
     filterEndTs = endTs;
-    let apiUrl = 'https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=' + 
-                startTs + '&endTime=' + endTs + '&disableGlobalNav=false';
+    let apiUrl = `https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=${startTs}&endTime=${endTs}&disableGlobalNav=false`;
     let headers = { ...capturedFetch.init.headers };
     let method = "POST";
     let credentials = "include";
@@ -358,10 +356,10 @@ let filterStartTs = null, filterEndTs = null;
       let recs = json.customerHistoryRecords || [];
       token = json.encodedRequestToken;
       records.push(...recs);
-      logMsg('📦 ' + records.length + ' so far...');
+      logMsg(`📦 ${records.length} so far...`);
       await new Promise(r => setTimeout(r,300));
     } while(token);
-    logMsg('✅ Done! ' + records.length + ' total.');
+    logMsg(`✅ Done! ${records.length} total.`);
     document.getElementById("htmlBtn").disabled = false;
   }
 
@@ -370,7 +368,70 @@ let filterStartTs = null, filterEndTs = null;
   // ────────────────────────────────────────────── 
   function openFilteredPage(){
     let win = window.open("", "_blank");
-    win.document.write('<!DOCTYPE html><html><head><title>Alexa Utterances</title><style>body{margin:0;display:flex;height:100vh;font-family:sans-serif}#leftPanel{width:30%;padding:10px;border-right:1px solid #ccc;overflow:auto}#rightPanel{width:70%;padding:10px;overflow:auto}table{width:100%;margin-top:10px;border-collapse:collapse}th,td{padding:4px;border:1px solid #ccc;font-size:13px}.modalOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center}.modal{background:#fff;padding:20px;border-radius:8px;max-height:80vh;overflow:auto;width:80%}.closeModal{float:right;cursor:pointer;font-size:18px}.deviceSettings{margin-bottom:10px;padding:5px;border:1px solid #ccc;border-radius:6px}.deviceSettings label{margin-right:8px}.viewBtn{font-size:12px;cursor:pointer;margin-left:6px;text-decoration:underline;color:blue}</style></head><body><div id="leftPanel"><h2>Summary</h2><div id="summary"></div><div style="margin-top:10px;"><button id="generateReportBtn">Generate Report</button><button id="subtractionsReportBtn" style="margin-left:5px;">Subtractions Report</button><button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button></div><hr><h3>Devices</h3><div id="deviceList"></div></div><div id="rightPanel"><p id="recordCount" style="margin-bottom:10px;font-weight:bold;"></p><button id="expandAll" style="margin-bottom:10px">Expand All</button><div id="filtersContainer" style="display:flex;gap:5px;margin-bottom:10px;"><div class="filterRow" style="display:flex;gap:4px;"><input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;"><select class="filterField"><option value="any">Any</option><option value="time">Time</option><option value="type">Type</option><option value="transcript">Transcript</option></select><button class="removeFilterBtn" style="display:none;">×</button></div><button id="addFilterBtn" style="width:24px;">+</button></div><select id="deviceFilter"><option value="">All Devices</option></select><table><thead><tr><th>Toggle/Flags</th><th>Time (ET)</th><th>Profile</th><th>Device</th><th>Transcript</th><th>Type</th></tr></thead><tbody id="tableBody"></tbody></table></div></body></html>');
+    win.document.write(`<!DOCTYPE html>
+<html>
+  <head>
+    <title>Alexa Utterances</title>
+    <style>
+      body { margin:0; display:flex; height:100vh; font-family:sans-serif; }
+      #leftPanel { width:30%; padding:10px; border-right:1px solid #ccc; overflow:auto; }
+      #rightPanel { width:70%; padding:10px; overflow:auto; }
+      table { width:100%; margin-top:10px; border-collapse:collapse; }
+      th, td { padding:4px; border:1px solid #ccc; font-size:13px; }
+      .modalOverlay { position:fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; }
+      .modal { background:#fff; padding:20px; border-radius:8px; max-height:80vh; overflow:auto; width:80%; }
+      .closeModal { float:right; cursor:pointer; font-size:18px; }
+      .deviceSettings { margin-bottom:10px; padding:5px; border:1px solid #ccc; border-radius:6px; }
+      .deviceSettings label { margin-right:8px; }
+      .viewBtn { font-size:12px; cursor:pointer; margin-left:6px; text-decoration:underline; color:blue; }
+    </style>
+  </head>
+  <body>
+    <div id="leftPanel">
+      <h2>Summary</h2>
+      <div id="summary"></div>
+      <div style="margin-top:10px;">
+        <button id="generateReportBtn">Generate Report</button>
+        <button id="subtractionsReportBtn" style="margin-left:5px;">Subtractions Report</button>
+        <button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button>
+      </div>
+      <hr>
+      <h3>Devices</h3>
+      <div id="deviceList"></div>
+    </div>
+    <div id="rightPanel">
+      <p id="recordCount" style="margin-bottom:10px;font-weight:bold;"></p>
+      <button id="expandAll" style="margin-bottom:10px">Expand All</button>
+      <div id="filtersContainer" style="display:flex;gap:5px;margin-bottom:10px;">
+        <div class="filterRow" style="display:flex;gap:4px;">
+          <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
+          <select class="filterField">
+            <option value="any">Any</option>
+            <option value="time">Time</option>
+            <option value="type">Type</option>
+            <option value="transcript">Transcript</option>
+          </select>
+          <button class="removeFilterBtn" style="display:none;">×</button>
+        </div>
+        <button id="addFilterBtn" style="width:24px;">+</button>
+      </div>
+      <select id="deviceFilter"><option value="">All Devices</option></select>
+      <table>
+        <thead>
+          <tr>
+            <th>Toggle/Flags</th>
+            <th>Time (ET)</th>
+            <th>Profile</th>
+            <th>Device</th>
+            <th>Transcript</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </body>
+</html>`);
     win.document.close();
 
     // Hook up Generate Report button
@@ -415,54 +476,59 @@ let filterStartTs = null, filterEndTs = null;
     // Generate a detailed subtractions report per device/category
     function generateSubtractionsReport(){
       const deviceFilterVal = win.document.getElementById('deviceFilter').value;
+      // Determine which devices to include
       const devices = deviceFilterVal
         ? [deviceFilterVal]
         : Object.keys(deviceSettings).filter(d => deviceSettings[d].assigned);
+      // Identify Metis devices
       const metisPattern = /\bMetis\b/;
       const metisDevices = devices.filter(d => metisPattern.test(d));
       const nonMetisDevices = devices.filter(d => !metisPattern.test(d));
       const reportLines = ['Detailed Subtractions:'];
-      
+      // Aggregate Metis (All)
       if (metisDevices.length > 0) {
-        const metisRecs = records.filter(r => 
-          metisPattern.test(r.device?.deviceName || 'Unknown') && 
-          devices.includes(r.device?.deviceName || 'Unknown')
-        );
-        const shortList = [], srList = [], dupList = [];
+        const metisRecs = records.filter(r => metisPattern.test(r.device?.deviceName || 'Unknown') && devices.includes(r.device?.deviceName || 'Unknown'));
+        const shortList = [];
+        const srList = [];
+        const dupList = [];
         metisRecs.forEach(r => {
           if (r._activeFlags.includes('1W')) shortList.push(r._transcript);
           if (r._activeFlags.includes('SR')) {
             const typeLabel = r.utteranceType || r.intent || '';
-            srList.push(r._transcript + ' (' + typeLabel + ')');
+            srList.push(`${r._transcript} (${typeLabel})`);
           }
           if (r._activeFlags.includes('DUP')) dupList.push(r._transcript);
         });
-        reportLines.push('', 'Device: Metis (All)');
-        reportLines.push('Short Utterances: ' + shortList.length);
+        reportLines.push('', `Device: Metis (All)`);
+        reportLines.push(`Short Utterances: ${shortList.length}`);
         shortList.forEach(item => reportLines.push(item));
-        reportLines.push('System Replacement: ' + srList.length);
+        reportLines.push(`System Replacement: ${srList.length}`);
         srList.forEach(item => reportLines.push(item));
-        reportLines.push('Duplicates: ' + dupList.length);
+        reportLines.push(`Duplicates: ${dupList.length}`);
         dupList.forEach(item => reportLines.push(item));
       }
-      
+      // Non-Metis devices
       nonMetisDevices.forEach(dev => {
-        reportLines.push('', 'Device: ' + dev);
+        reportLines.push('', `Device: ${dev}`);
+        // Gather records for this device
         const devRecs = records.filter(r => (r.device?.deviceName || 'Unknown') === dev);
-        const shortList = [], srList = [], dupList = [];
+        // Collect per-category entries
+        const shortList = [];
+        const srList = [];
+        const dupList = [];
         devRecs.forEach(r => {
           if (r._activeFlags.includes('1W')) shortList.push(r._transcript);
           if (r._activeFlags.includes('SR')) {
             const typeLabel = r.utteranceType || r.intent || '';
-            srList.push(r._transcript + ' (' + typeLabel + ')');
+            srList.push(`${r._transcript} (${typeLabel})`);
           }
           if (r._activeFlags.includes('DUP')) dupList.push(r._transcript);
         });
-        reportLines.push('Short Utterances: ' + shortList.length);
+        reportLines.push(`Short Utterances: ${shortList.length}`);
         shortList.forEach(item => reportLines.push(item));
-        reportLines.push('System Replacement: ' + srList.length);
+        reportLines.push(`System Replacement: ${srList.length}`);
         srList.forEach(item => reportLines.push(item));
-        reportLines.push('Duplicates: ' + dupList.length);
+        reportLines.push(`Duplicates: ${dupList.length}`);
         dupList.forEach(item => reportLines.push(item));
       });
       return reportLines.join('\n');
@@ -473,7 +539,7 @@ let filterStartTs = null, filterEndTs = null;
     records.forEach(r => { 
       if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
     });
-    const wakeWords = ["alexa","hello alexa","hey alexa","ok alexa","hi alexa","hello ziggy","hey ziggy","ok ziggy","hi ziggy","computer","ok computer","hello computer","hey computer","hi computer","ok computer","echo","hey echo","hello echo","hi echo"];
+    const wakeWords = ["alexa","hello alexa","hey alexa","ok alexa","hi alexa","hello ziggy","hey ziggy","ok ziggy","hi ziggy","computer","ok computer","hello computer","hey computer","hi computer","ok computer","echo","hey echo","hello echo","hi echo","ok echo"];
 
     function processRecordFlags(){
       let deviceLastTranscript = {};
@@ -561,229 +627,6 @@ let filterStartTs = null, filterEndTs = null;
       });
     }
 
-    function detectConversations(records) {
-      const INACTIVITY_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
-      let conversations = [];
-      let currentConvo = null;
-
-      // Sort records by timestamp
-      const sortedRecords = [...records].sort((a, b) => a.timestamp - b.timestamp);
-
-      sortedRecords.forEach(record => {
-        const deviceId = record.device?.deviceName || 'Unknown';
-        const profile = (record.personsInfo && record.personsInfo.length > 0) 
-          ? record.personsInfo[0].personFirstName 
-          : 'Unknown';
-
-        if (!currentConvo) {
-          // Start new conversation
-          currentConvo = {
-            id: 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-            deviceId: deviceId,
-            profile: profile,
-            utterances: [record],
-            startTime: record.timestamp,
-            endTime: record.timestamp,
-            topic: null
-          };
-        } else {
-          const timeDiff = record.timestamp - currentConvo.endTime;
-          const sameContext = deviceId === currentConvo.deviceId && 
-                            profile === currentConvo.profile;
-
-          if (timeDiff < INACTIVITY_THRESHOLD && sameContext) {
-            // Add to current conversation
-            currentConvo.utterances.push(record);
-            currentConvo.endTime = record.timestamp;
-          } else {
-            // Finalize current conversation
-            currentConvo.topic = inferTopic(currentConvo.utterances);
-            conversations.push(currentConvo);
-            
-            // Start new conversation
-            currentConvo = {
-              id: 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-              deviceId: deviceId,
-              profile: profile,
-              utterances: [record],
-              startTime: record.timestamp,
-              endTime: record.timestamp,
-              topic: null
-            };
-          }
-        }
-      });
-
-      // Add final conversation if exists
-      if (currentConvo) {
-        currentConvo.topic = inferTopic(currentConvo.utterances);
-        conversations.push(currentConvo);
-      }
-
-      return conversations;
-    }
-
-    function inferTopic(utterances) {
-      // Common topic keywords and their weights
-      const topicKeywords = {
-        weather: ['weather', 'temperature', 'forecast', 'rain', 'sunny'],
-        music: ['play', 'song', 'music', 'playlist', 'album', 'artist'],
-        smarthome: ['turn', 'on', 'off', 'lights', 'thermostat', 'lock', 'door'],
-        timer: ['timer', 'alarm', 'reminder', 'wake'],
-        calendar: ['schedule', 'appointment', 'calendar', 'event'],
-        shopping: ['buy', 'order', 'cart', 'purchase', 'shopping'],
-        information: ['what', 'how', 'when', 'where', 'why', 'tell', 'me', 'about']
-      };
-
-      // Count keyword occurrences
-      const topicScores = {};
-      utterances.forEach(record => {
-        const text = record._transcript.toLowerCase();
-        
-        Object.entries(topicKeywords).forEach(([topic, keywords]) => {
-          topicScores[topic] = topicScores[topic] || 0;
-          keywords.forEach(keyword => {
-            if (text.includes(keyword)) {
-              topicScores[topic]++;
-            }
-          });
-        });
-      });
-
-      // Find dominant topic
-      let dominantTopic = null;
-      let highestScore = 0;
-      Object.entries(topicScores).forEach(([topic, score]) => {
-        if (score > highestScore) {
-          highestScore = score;
-          dominantTopic = topic;
-        }
-      });
-
-      // If no clear topic found, try to extract key terms
-      if (!dominantTopic || highestScore === 0) {
-        const words = utterances
-          .map(r => r._transcript.toLowerCase())
-          .join(' ')
-          .split(/\\s+/)
-          .filter(w => w.length > 3)
-          .filter(w => !['alexa', 'echo', 'computer', 'the', 'and', 'that'].includes(w));
-        
-        // Get most frequent meaningful words
-        const wordFreq = {};
-        words.forEach(w => wordFreq[w] = (wordFreq[w] || 0) + 1);
-        const topWords = Object.entries(wordFreq)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 2)
-          .map(([word]) => word);
-        
-        return topWords.length ? topWords.join('-') + ' related' : 'general interaction';
-      }
-
-      return dominantTopic.charAt(0).toUpperCase() + dominantTopic.slice(1);
-    }
-
-    function renderConversationsView() {
-      const convoPanel = document.createElement('div');
-      convoPanel.id = 'conversationsPanel';
-      convoPanel.style = 'position:fixed;right:20px;top:20px;width:300px;' +
-                        'background:#fff;padding:15px;border-radius:8px;' +
-                        'box-shadow:0 2px 10px rgba(0,0,0,0.1);max-height:80vh;overflow:auto;';
-      
-      const conversations = detectConversations(records);
-      
-      convoPanel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
-        '<h3 style="margin:0;">Conversations (' + conversations.length + ')</h3>' +
-        '<button id="closeConvoPanel" style="border:none;background:none;cursor:pointer;">✖</button>' +
-        '</div>' +
-        '<input type="text" id="topicFilter" placeholder="Filter by topic..." ' +
-        'style="width:100%;padding:5px;margin-bottom:10px;border:1px solid #ccc;border-radius:4px;">' +
-        '<div id="conversationsList"></div>';
-
-      win.document.body.appendChild(convoPanel);
-
-      // Add close button handler
-      win.document.getElementById('closeConvoPanel').onclick = () => convoPanel.remove();
-
-      // Render conversations
-      function renderConversationsList(filterText = '') {
-        const listDiv = win.document.getElementById('conversationsList');
-        listDiv.innerHTML = '';
-
-        conversations
-          .filter(c => !filterText || 
-                      c.topic.toLowerCase().includes(filterText.toLowerCase()))
-          .forEach((convo, idx) => {
-            const convoDiv = document.createElement('div');
-            convoDiv.style = 'border:1px solid #eee;margin-bottom:8px;padding:8px;border-radius:4px;';
-            
-            const startTime = new Date(convo.startTime)
-              .toLocaleTimeString('en-US', {timeZone:'America/New_York'});
-            const endTime = new Date(convo.endTime)
-              .toLocaleTimeString('en-US', {timeZone:'America/New_York'});
-
-            convoDiv.innerHTML = 
-              '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">' +
-              '<strong>Topic: ' + convo.topic + '</strong>' +
-              '<span style="color:#666;">' + convo.utterances.length + ' utterances</span>' +
-              '</div>' +
-              '<div style="font-size:0.9em;color:#666;margin-bottom:5px;">' +
-              startTime + ' - ' + endTime +
-              '</div>' +
-              '<div style="font-size:0.9em;color:#666;margin-bottom:5px;">' +
-              'Device: ' + convo.deviceId +
-              '</div>' +
-              '<button class="toggleConvo" data-idx="' + idx + '" ' +
-              'style="border:none;background:#f0f0f0;padding:4px 8px;border-radius:4px;cursor:pointer;">' +
-              'Show Utterances</button>' +
-              '<div class="convoUtterances" id="convo_' + idx + '" style="display:none;margin-top:8px;"></div>';
-          
-            listDiv.appendChild(convoDiv);
-          });
-
-        // Add toggle handlers
-        [...win.document.querySelectorAll('.toggleConvo')].forEach(btn => {
-          btn.onclick = function() {
-            const idx = this.getAttribute('data-idx');
-            const utterancesDiv = win.document.getElementById('convo_' + idx);
-            const convo = conversations[idx];
-            
-            if (utterancesDiv.style.display === 'none') {
-              utterancesDiv.style.display = 'block';
-              utterancesDiv.innerHTML = convo.utterances
-                .map(u => '<div style="margin-bottom:4px;padding:4px;background:#f9f9f9;">' +
-                         u._transcript +
-                         '</div>')
-                .join('');
-              this.textContent = 'Hide Utterances';
-            } else {
-              utterancesDiv.style.display = 'none';
-              this.textContent = 'Show Utterances';
-            }
-          };
-        });
-      }
-
-      // Add filter handler
-      win.document.getElementById('topicFilter').oninput = function(e) {
-        renderConversationsList(e.target.value);
-      };
-
-      // Initial render
-      renderConversationsList();
-    }
-
-    // Add button to show conversations view
-    function addConversationsButton() {
-      const btn = win.document.createElement('button');
-      btn.textContent = 'Show Conversations';
-      btn.style = 'margin-left:10px;';
-      btn.onclick = renderConversationsView;
-      
-      const expandAllBtn = win.document.getElementById('expandAll');
-      expandAllBtn.parentNode.insertBefore(btn, expandAllBtn.nextSibling);
-    }
-
     function renderData(){
       processRecordFlags();
       let tbody = win.document.getElementById("tableBody");
@@ -802,8 +645,8 @@ let filterStartTs = null, filterEndTs = null;
       let wwCounts = {}, subCounts = { "1W":0, "SR":0, "DUP":0 };
       let deviceCount = {}, dailyCount = {};
       let firstTs = null, lastTs = null;
+      // Track subtractions per device for valid calculation
       let subPerDevice = {};
-      
       visibleRecords.forEach((r, idx) => {
         let time = et(r.timestamp);
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
@@ -816,7 +659,7 @@ let filterStartTs = null, filterEndTs = null;
           let ww = r._detectedWW;
           wwCounts[ww] = (wwCounts[ww] || 0) + 1;
         }
-        
+        // Increment global and per-device subtraction counts
         subPerDevice[dev] = subPerDevice[dev] || { "1W":0, "SR":0, "DUP":0 };
         r._activeFlags.forEach(flag => {
           if(flag === "1W") {
@@ -832,11 +675,10 @@ let filterStartTs = null, filterEndTs = null;
             subPerDevice[dev]["DUP"]++;
           }
         });
-        
         let tr = win.document.createElement("tr");
         let flagsText = r._activeFlags.join(", ");
         let toggleCell = tr.insertCell(0);
-        toggleCell.innerHTML = '<button class="toggle" data-idx="' + idx + '">▶</button> ' + flagsText;
+        toggleCell.innerHTML = `<button class='toggle' data-idx='${idx}'>▶</button> ${flagsText}`;
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
           let target = win.document.getElementById("resp" + idx);
@@ -844,17 +686,20 @@ let filterStartTs = null, filterEndTs = null;
             target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none";
           }
         });
-        
+        // Time
         tr.insertCell(1).innerText = et(r.timestamp);
+        // Profile (from personsInfo)
         let profile = (r.personsInfo && r.personsInfo.length>0) 
                       ? r.personsInfo[0].personFirstName 
                       : "";
         tr.insertCell(2).innerText = profile;
+        // Device
         tr.insertCell(3).innerText = dev;
+        // Transcript
         tr.insertCell(4).innerText = r._transcript;
+        // Type
         tr.insertCell(5).innerText = r.utteranceType || r.intent || "";
         tbody.appendChild(tr);
-        
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
           const responseTypes = ["tts_replacement_text", "alexa_response"];
@@ -867,47 +712,61 @@ let filterStartTs = null, filterEndTs = null;
           }
         }
         let tr2 = win.document.createElement("tr");
-        tr2.id = "resp" + idx;
+        tr2.id = `resp${idx}`;
         tr2.style.display = "none";
-        tr2.innerHTML = '<td colspan="6" style="background:#f9f9f9"><b>Alexa:</b> ' + response + '</td>';
+        tr2.innerHTML = `<td colspan='6' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
         tbody.appendChild(tr2);
       });
-      
       let wwTotal = Object.values(wwCounts).reduce((a,b)=>a+b,0);
       let wwPct = totalUtterances ? Math.round(wwTotal/totalUtterances*100) : 0;
-      let summaryHTML = '<p><b>First Valid:</b> ' + (firstTs ? et(firstTs) : "N/A") + '</p>' +
-        '<p><b>Last Valid:</b> ' + (lastTs ? et(lastTs) : "N/A") + '</p>' +
-        '<h4>Daily Overview</h4>' +
-        '<ul>' + Object.entries(dailyCount).map(([d,c]) => '<li>' + d + ': ' + c + '</li>').join('') + '</ul>' +
-        '<h4>Device Overview:</h4>' +
-        '<ul>' + Object.entries(deviceCount).map(([d,c]) => '<li>' + d + ': ' + c + '</li>').join('') + '</ul>' +
-        '<h4>Wake Words:</h4>' +
-        '<ul>' + Object.entries(wwCounts).map(([w,c]) => '<li>' + w + ': ' + c + '</li>').join('') + '</ul>' +
-        '<p>Total WW: ' + wwTotal + ' (' + wwPct + '% of utterances)</p>';
-
-      summaryHTML += '<h4>Subtractions:</h4>' +
-        '<ul>' +
-        '<li>System Replacement: ' + subCounts["SR"] + ' <span class="viewBtn" data-cat="SR">(view)</span></li>' +
-        '<li>Short Utterances: ' + subCounts["1W"] + ' <span class="viewBtn" data-cat="1W">(view)</span></li>' +
-        '<li>Duplicates: ' + subCounts["DUP"] + ' <span class="viewBtn" data-cat="DUP">(view)</span></li>' +
-        '</ul>';
-
-      const validCount = Math.max(0, totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"]);
-      summaryHTML += '<p><b>Estimated Valid Utterances:</b> ' + validCount + '</p>';
-      summaryHTML += '<h4>Estimated Valid Per Device:</h4><ul>' + 
+      let summaryHTML = `
+        <p><b>First Valid:</b> ${firstTs ? et(firstTs) : "N/A"}</p>
+        <p><b>Last Valid:</b> ${lastTs ? et(lastTs) : "N/A"}</p>
+        <h4>Daily Overview</h4>
+        <ul>${Object.entries(dailyCount).map(([d,c])=>`<li>${d}: ${c}</li>`).join('')}</ul>
+        <h4>Device Overview:</h4>
+        <ul>${Object.entries(deviceCount).map(([d,c])=>`<li>${d}: ${c}</li>`).join('')}</ul>
+        <h4>Wake Words:</h4>
+        <ul>${Object.entries(wwCounts).map(([w,c])=>`<li>${w}: ${c}</li>`).join('')}</ul>
+        <p>Total WW: ${wwTotal} (${wwPct}% of utterances)</p>
+      `;
+      // Clamp subtraction counts so they stay within [0, totalUtterances]
+      subCounts["1W"] = Math.max(0, Math.min(subCounts["1W"], totalUtterances));
+      subCounts["SR"] = Math.max(0, Math.min(subCounts["SR"], totalUtterances));
+      subCounts["DUP"] = Math.max(0, Math.min(subCounts["DUP"], totalUtterances));
+      summaryHTML += `
+        <h4>Subtractions:</h4>
+        <ul>
+          <li>System Replacement: ${subCounts["SR"]} <span class="viewBtn" data-cat="SR">(view)</span></li>
+          <li>Short Utterances: ${subCounts["1W"]} <span class="viewBtn" data-cat="1W">(view)</span></li>
+          <li>Duplicates: ${subCounts["DUP"]} <span class="viewBtn" data-cat="DUP">(view)</span></li>
+        </ul>
+      `;
+      // Compute and clamp estimated valid utterances
+      const validCount = Math.max(
+        0,
+        totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"]
+      );
+      summaryHTML += `<p><b>Estimated Valid Utterances:</b> ${validCount}</p>`;
+      // Estimated valid utterances per device
+      summaryHTML += `<h4>Estimated Valid Per Device:</h4><ul>${
         Object.entries(deviceCount).map(([d, count]) => {
           const subs = subPerDevice[d] || { "1W":0, "SR":0, "DUP":0 };
           const valid = Math.max(0, count - (subs["1W"] + subs["SR"] + subs["DUP"]));
-          return '<li>' + d + ': ' + valid + '</li>';
-        }).join('') + '</ul>';
-
+          return `<li>${d}: ${valid}</li>`;
+        }).join('')
+      }</ul>`;
       win.document.getElementById("summary").innerHTML = summaryHTML;
+
+      // Update record count at the top of #rightPanel
       const recordCountElem = win.document.getElementById("recordCount");
       if (recordCountElem) {
-        recordCountElem.textContent = 'Showing ' + visibleRecords.length + ' records';
+        recordCountElem.textContent = `Showing ${visibleRecords.length} records`;
       }
       
-      deviceFilter.innerHTML = '<option value="">All Devices</option>';
+      // Preserve selected device filter if possible.
+      let currentVal = deviceFilter.value;
+      deviceFilter.innerHTML = `<option value="">All Devices</option>`;
       Object.keys(deviceSettings).forEach(dev=>{
         if(deviceSettings[dev].assigned){
           let opt = win.document.createElement("option");
@@ -968,20 +827,12 @@ let filterStartTs = null, filterEndTs = null;
         });
       });
 
-      // Format header with simplified date format
+      // Format header
       const startStr = new Date(filterStartTs)
-        .toLocaleDateString("en-US", {
-          timeZone: "America/New_York",
-          month: "2-digit",
-          day: "2-digit"
-        });
-      const endStr = new Date(filterEndTs)
-        .toLocaleDateString("en-US", {
-          timeZone: "America/New_York",
-          month: "2-digit",
-          day: "2-digit"
-        });
-      let report = '<b>Week</b>: ' + startStr + ' - ' + endStr + '\n';
+        .toLocaleString("en-US",{timeZone:"America/New_York"});
+      const endStr   = new Date(filterEndTs)
+        .toLocaleString("en-US",{timeZone:"America/New_York"});
+      let report = `<b>Week</b>: ${startStr} - ${endStr}\n`;
 
       // Assigned devices (merge Metis variants)
       const assignedRaw = Object.entries(deviceSettings)
@@ -992,175 +843,65 @@ let filterStartTs = null, filterEndTs = null;
       const assignedNonMetis = assignedRaw.filter(d => !metisPattern.test(d));
       const assignedDevices = assignedNonMetis.slice();
       if (assignedMetis.length > 0) assignedDevices.push("Metis (All)");
-      report += '<b>Assigned Devices</b>: ' + assignedDevices.join(", ") + '\n';
-      report += '<b>Recommendation</b>:';
-      report += '\n';
-      report += '<b>Estimated Valid</b>:';
+      report += `<b>Assigned Devices</b>: ${assignedDevices.join(", ")}\n`;
+      report += "<b>Recommendation</b>:\n";
+
+      // Estimated Valid (overall)
+      report += "<b>Estimated Valid</b>:";
       assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
-        report += dev + ': ' + valid + '\n';
+        report += `${dev}: ${valid}\n`;
       });
-      report += '<b>Testing Time:</b> ';
+
+      // Testing Time
+      report += "<b>Testing Time:</b> ";
       const firstValidStr = firstValidTs
         ? new Date(firstValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
         : "N/A";
       const lastValidStr  = lastValidTs
         ? new Date(lastValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
         : "N/A";
-      report += 'First Valid: ' + firstValidStr + ' - ';
-      report += 'Last Valid: ' + lastValidStr + '\n';
-      report += '<b>Things to Try</b>:';
-      report += '\n';
-      report += '<b>Audit Comment</b>:';
-      report += '\n';
-      report += '<b>Areas of Improvement</b>:';
-      report += '\n';
-      report += '<b>Tester Contacted?</b>:';
-      report += '\n';
-      report += '<b>Tester Acknowledgement/Feedback Screenshot?</b>:';
-      report += '\n';
-      report += '<b>Daily Usage</b>:';
+      report += `First Valid: ${firstValidStr} - `;
+      report += `Last Valid: ${lastValidStr}\n`;
+      report += "<b>Things to Try</b>:\n";
+      report += "<b>Audit Comment</b>:\n";
+      report += "<b>Areas of Improvement</b>:\n";
+      report += "<b>Tester Contacted?</b>:\n";
+      report += "<b>Tester Acknowledgement/Feedback Screenshot?</b>:\n";
+      // Daily Overview
+      report += "<b>Daily Usage</b>:\n";
       Object.entries(dailyCount).forEach(([day,c]) => {
-        report += day + ': ' + c + '\n';
+        report += `${day}: ${c}\n`;
       });
-      report += '<b>Subtractions</b>:';
-      report += '\n';
-      report += 'Total Lines:';
-      report += '\n';
+      // Subtractions section
+      report += "<b>Subtractions</b>:\n";
+      report += "Total Lines:\n";
       assignedDevices.forEach(dev => {
-        report += dev + ': ' + (deviceCount[dev]||0) + '\n';
+        report += `${dev}: ${deviceCount[dev]||0}\n`;
       });
-      report += '\n';
+      report += "\n";
       assignedDevices.forEach(dev => {
         const subs = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const tot = subs["1W"] + subs["SR"] + subs["DUP"];
-        report += dev + ':';
-        report += '\n';
-        report += '  Short Utterance: ' + subs["1W"] + '\n';
-        report += '  System Replacement: ' + subs["SR"] + '\n';
-        report += '  Duplicates: ' + subs["DUP"] + '\n';
-        report += '  Total: ' + tot + '\n';
+        report += `${dev}:\n` +
+                  `  Short Utterance: ${subs["1W"]}\n` +
+                  `  System Replacement: ${subs["SR"]}\n` +
+                  `  Duplicates: ${subs["DUP"]}\n` +
+                  `  Total: ${tot}\n`;
       });
-      report += 'Estimated Valid:';
-      report += '\n';
+
+      // Estimated Valid again under subtractions
+      report += "Estimated Valid:\n";
       assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
-        report += dev + ': ' + valid + '\n';
-      });
-      return report;
-    }
-
-    function generateSubtractionsSummaryReport(){
-      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
-      const visibleRecords = records.filter(r=>{
-        const dev = r.device?.deviceName || "Unknown";
-        if(deviceFilterVal !== ""){
-          return dev === deviceFilterVal;
-        } else {
-          return deviceSettings[dev] && deviceSettings[dev].assigned;
-        }
-      });
-      if(visibleRecords.length === 0) return "No records available for subtractions report.";
-
-      const metisPattern = /\bMetis\b/;
-      const deviceCount = {}, subPerDevice = {};
-
-      visibleRecords.forEach(r => {
-        const dev = r.device?.deviceName || "Unknown";
-        const bucket = metisPattern.test(dev) ? "Metis (All)" : dev;
-        deviceCount[bucket] = (deviceCount[bucket]||0) + 1;
-        subPerDevice[bucket] = subPerDevice[bucket] || {"1W":0,"SR":0,"DUP":0};
-        r._activeFlags.forEach(flag => {
-          if(flag === "1W") subPerDevice[bucket]["1W"]++;
-          if(flag === "SR") subPerDevice[bucket]["SR"]++;
-          if(flag === "DUP") subPerDevice[bucket]["DUP"]++;
-        });
-      });
-
-      let report = '<b>Subtractions Summary</b>:';
-      report += '\n';
-      report += '\n';
-      Object.entries(subPerDevice).forEach(([dev, subs]) => {
-        const total = (subs["1W"]||0)+(subs["SR"]||0)+(subs["DUP"]||0);
-        report += '<b>' + dev + '</b>:';
-        report += '\n';
-        report += '  Short Utterance: ' + subs["1W"] + '\n';
-        report += '  System Replacement: ' + subs["SR"] + '\n';
-        report += '  Duplicates: ' + subs["DUP"] + '\n';
-        report += '  Total: ' + total + '\n';
-        report += '\n';
+        report += `${dev}: ${valid}\n`;
       });
 
       return report;
-    }
-
-    function enhanceFiltersContainer() {
-      // Add logic selector to each filter group
-      const filtersContainer = win.document.getElementById('filtersContainer');
-      
-      // Add overall logic selector
-      const logicSelector = document.createElement('div');
-      logicSelector.style = 'margin-bottom:10px;';
-      logicSelector.innerHTML = 
-        '<select id="filterLogic">' +
-        '<option value="AND">Match ALL Filters (AND)</option>' +
-        '<option value="OR">Match ANY Filter (OR)</option>' +
-        '</select>';
-      filtersContainer.insertBefore(logicSelector, filtersContainer.firstChild);
-
-      // Modify filter row creation
-      function createFilterRow() {
-        const fr = document.createElement('div');
-        fr.className = 'filterRow';
-        fr.style = 'display:flex;gap:4px;margin-bottom:5px;';
-        fr.innerHTML = 
-          '<input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">' +
-          '<select class="filterField">' +
-          '<option value="any">Any</option>' +
-          '<option value="time">Time</option>' +
-          '<option value="type">Type</option>' +
-          '<option value="transcript">Transcript</option>' +
-          '</select>' +
-          '<button class="removeFilterBtn">×</button>';
-        return fr;
-      }
-
-      // Rebind events
-      win.document.getElementById('filterLogic').onchange = applyFilters;
-      
-      // Update existing filter bindings
-      function bindFilterEvents(fr) {
-        let field = fr.querySelector('.filterField');
-        const removeBtn = fr.querySelector('.removeFilterBtn');
-
-        field.onchange = function() {
-          if (field.value === 'time') {
-            setTimeInputs(fr);
-          } else {
-            setTextInput(fr);
-          }
-          applyFilters();
-        };
-
-        removeBtn.onclick = () => {
-          fr.remove();
-          applyFilters();
-        };
-
-        // Initial setup based on field type
-        if (field.value === 'time') {
-          setTimeInputs(fr);
-        } else {
-          setTextInput(fr);
-        }
-      }
-
-      // Initialize
-      [...win.document.querySelectorAll('.filterRow')].forEach(bindFilterEvents);
     }
 
     function renderDeviceSettings(){
@@ -1169,9 +910,9 @@ let filterStartTs = null, filterEndTs = null;
       Object.entries(deviceSettings).forEach(([dev, settings])=>{
         let div = win.document.createElement("div");
         div.className = "deviceSettings";
-        div.innerHTML = '<strong>' + dev + '</strong><br>' +
-          '<label><input type="checkbox" class="assignChk" data-dev="' + dev + '" ' + (settings.assigned ? "checked" : "") + '> Assigned</label>' +
-          '<label><input type="checkbox" class="textChk" data-dev="' + dev + '" ' + (settings.textBased ? "checked" : "") + '> Text Based Input</label>';
+        div.innerHTML = `<strong>${dev}</strong><br>
+          <label><input type="checkbox" class="assignChk" data-dev="${dev}" ${settings.assigned ? "checked" : ""}> Assigned</label>
+          <label><input type="checkbox" class="textChk" data-dev="${dev}" ${settings.textBased ? "checked" : ""}> Text Based Input</label>`;
         deviceListDiv.appendChild(div);
       });
       [...win.document.querySelectorAll(".assignChk")].forEach(chk=>{
@@ -1186,6 +927,7 @@ let filterStartTs = null, filterEndTs = null;
         chk.onchange = function(e){
           let d = e.target.getAttribute("data-dev");
           deviceSettings[d].textBased = e.target.checked;
+          // Clear SR and DUP overrides for this device so flags recalculate correctly
           records.forEach(r => {
             let devName = r.device?.deviceName || "Unknown";
             if (devName === d) {
@@ -1210,15 +952,16 @@ let filterStartTs = null, filterEndTs = null;
         headerCols += '<th>Type</th>';
       }
       headerCols += '<th>Transcript</th><th>Override?</th>';
-      modal.innerHTML = '<span class="closeModal">✖</span>' +
-        '<h3>Override for ' + category + '</h3>' +
-        '<table>' +
-          '<thead>' +
-            '<tr>' + headerCols + '</tr>' +
-          '</thead>' +
-          '<tbody id="modalBody"></tbody>' +
-        '</table>' +
-        '<button id="resetOverrides">Reset Overrides</button>';
+      modal.innerHTML = `<span class="closeModal">✖</span>
+        <h3>Override for ${category}</h3>
+        <table>
+          <thead>
+            <tr>${headerCols}</tr>
+          </thead>
+          <tbody id="modalBody"></tbody>
+        </table>
+        <button id="resetOverrides">Reset Overrides</button>
+      `;
       modalOverlay.appendChild(modal);
       win.document.body.appendChild(modalOverlay);
       
@@ -1233,12 +976,12 @@ let filterStartTs = null, filterEndTs = null;
       visibleRecords.forEach((r, i)=>{
         if(r._activeFlags.includes(category) || r._overrides[category]){
           let tr = win.document.createElement("tr");
-          let rowHtml = '<td>' + et(r.timestamp) + '</td><td>' + r.device?.deviceName || "Unknown" + '</td>';
+          let rowHtml = `<td>${et(r.timestamp)}</td><td>${r.device?.deviceName || "Unknown"}</td>`;
           if (category === 'SR') {
-            rowHtml += '<td>' + (r.utteranceType || r.intent || "") + '</td>';
+            rowHtml += `<td>${r.utteranceType || r.intent || ""}</td>`;
           }
-          rowHtml += '<td>' + r._transcript + '</td>' +
-            '<td><input type="checkbox" data-i="' + i + '" data-cat="' + category + '" ' + (r._overrides[category] ? "checked" : "") + '></td>';
+          rowHtml += `<td>${r._transcript}</td>
+            <td><input type="checkbox" data-i="${i}" data-cat="${category}" ${r._overrides[category] ? "checked" : ""}></td>`;
           tr.innerHTML = rowHtml;
           modalBody.appendChild(tr);
         }
@@ -1255,7 +998,7 @@ let filterStartTs = null, filterEndTs = null;
       });
       
       modal.querySelector("#resetOverrides").onclick = function(){
-        visibleRecords.forEach(r=>{ r._overrides[cat] = false; });
+        visibleRecords.forEach(r=>{ r._overrides[category] = false; });
         renderData();
         [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
           chk.checked = false;
@@ -1297,7 +1040,206 @@ let filterStartTs = null, filterEndTs = null;
 
     renderData();
     renderDeviceSettings();
-    enhanceFiltersContainer();
-    addConversationsButton();
+
+    // Utility: Convert "1:30 PM" or "09:15 AM" to minutes since midnight
+    function timeStringToMinutes(timeStr) {
+      // Accepts "h:mm AM/PM" or "hh:mm AM/PM"
+      const m = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*([AP]M)\s*$/i);
+      if (!m) return null;
+      let hour = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const ampm = m[3].toUpperCase();
+      if (ampm === "PM" && hour !== 12) hour += 12;
+      if (ampm === "AM" && hour === 12) hour = 0;
+      return hour * 60 + min;
+    }
+
+    // Multi‐filter functionality
+    function applyFilters(){
+      const filters = [...win.document.querySelectorAll('#filtersContainer .filterRow')];
+      const rows = [...win.document.querySelectorAll('#tableBody tr')].filter(r => !r.id);
+      let visibleCount = 0;
+      rows.forEach(row => {
+        let visible = true;
+        filters.forEach(fr => {
+          const field = fr.querySelector('.filterField').value;
+          if(field === 'time') {
+            // New time filter logic: use datetime-local inputs and compare full datetime
+            const startInput = fr.querySelector('.filterDateTimeStart');
+            const endInput = fr.querySelector('.filterDateTimeEnd');
+            const rowTimeStr = row.cells[1].innerText.trim();
+            const rowTime = new Date(rowTimeStr);
+            const startTime = startInput.value ? new Date(startInput.value) : null;
+            const endTime = endInput.value ? new Date(endInput.value) : null;
+            if (startTime && endTime) {
+              if (!(rowTime >= startTime && rowTime <= endTime)) visible = false;
+            }
+          } else {
+            const input = fr.querySelector('.filterInput').value.toLowerCase();
+            if(input){
+              let text = '';
+              if(field === 'any') {
+                text = row.innerText.toLowerCase();
+              } else if(field === 'type') {
+                text = row.cells[5].innerText.toLowerCase();
+              } else if(field === 'transcript') {
+                text = row.cells[4].innerText.toLowerCase();
+              }
+              if(field !== 'any' && field !== 'type' && field !== 'transcript') return;
+              if(!text.includes(input)) visible = false;
+            }
+          }
+        });
+        row.style.display = visible ? '' : 'none';
+        const next = row.nextElementSibling;
+        if(next && next.id && next.id.startsWith('resp')) next.style.display = 'none';
+        if (visible) visibleCount++;
+      });
+      // Update record count
+      const recordCountElem = win.document.getElementById("recordCount");
+      if (recordCountElem) {
+        recordCountElem.textContent = `Showing ${visibleCount} records`;
+      }
+    }
+
+    function bindFilterEvents(fr){
+      let input = fr.querySelector('.filterInput');
+      let field = fr.querySelector('.filterField');
+      const removeBtn = fr.querySelector('.removeFilterBtn');
+
+      // Helper to create time range inputs (datetime-local)
+      function setTimeInputs() {
+        // Remove previous inputs
+        let oldInput = fr.querySelector('.filterInput');
+        if (oldInput) oldInput.remove();
+        let oldStart = fr.querySelector('.filterTimeStart');
+        if (oldStart) oldStart.remove();
+        let oldEnd = fr.querySelector('.filterTimeEnd');
+        if (oldEnd) oldEnd.remove();
+        let oldDateStart = fr.querySelector('.filterDateTimeStart');
+        if (oldDateStart) oldDateStart.remove();
+        let oldDateEnd = fr.querySelector('.filterDateTimeEnd');
+        if (oldDateEnd) oldDateEnd.remove();
+        // Insert two datetime-local inputs
+        const start = win.document.createElement('input');
+        start.type = 'datetime-local';
+        start.className = 'filterDateTimeStart';
+        start.style = 'width:180px;padding:5px;';
+
+        const end = win.document.createElement('input');
+        end.type = 'datetime-local';
+        end.className = 'filterDateTimeEnd';
+        end.style = 'width:180px;padding:5px;';
+        // Insert before select
+        fr.insertBefore(start, field);
+        fr.insertBefore(end, field);
+        start.oninput = applyFilters;
+        end.oninput = applyFilters;
+      }
+
+      function setTextInput() {
+        // Remove previous inputs
+        let oldStart = fr.querySelector('.filterTimeStart');
+        if (oldStart) oldStart.remove();
+        let oldEnd = fr.querySelector('.filterTimeEnd');
+        if (oldEnd) oldEnd.remove();
+        let oldDateStart = fr.querySelector('.filterDateTimeStart');
+        if (oldDateStart) oldDateStart.remove();
+        let oldDateEnd = fr.querySelector('.filterDateTimeEnd');
+        if (oldDateEnd) oldDateEnd.remove();
+        let oldInput = fr.querySelector('.filterInput');
+        if (!oldInput) {
+          // Create new input and insert before select
+          oldInput = win.document.createElement('input');
+          oldInput.className = 'filterInput';
+          oldInput.placeholder = 'Search...';
+          oldInput.style = 'flex:1;padding:5px;';
+          fr.insertBefore(oldInput, field);
+        }
+        oldInput.oninput = applyFilters;
+      }
+
+      // Switch input fields on filter type change
+      field.onchange = function() {
+        if (field.value === 'time') {
+          setTimeInputs();
+        } else {
+          setTextInput();
+        }
+        applyFilters();
+      };
+
+      // Initial bind
+      if (field.value === 'time') {
+        setTimeInputs();
+      } else {
+        setTextInput();
+      }
+      removeBtn.onclick = () => { fr.remove(); applyFilters(); };
+    }
+
+    // Initialize first filter row
+    [...win.document.querySelectorAll('#filtersContainer .filterRow')].forEach(bindFilterEvents);
+
+    // Add new filter rows
+    win.document.getElementById('addFilterBtn').onclick = () => {
+      const fr = win.document.createElement('div');
+      fr.className = 'filterRow';
+      fr.style = 'display:flex;gap:4px;';
+      fr.innerHTML = `
+        <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
+        <select class="filterField">
+          <option value="any">Any</option>
+          <option value="time">Time</option>
+          <option value="type">Type</option>
+          <option value="transcript">Transcript</option>
+        </select>
+        <button class="removeFilterBtn">×</button>`;
+      win.document.getElementById('filtersContainer').insertBefore(
+        fr, win.document.getElementById('addFilterBtn')
+      );
+      bindFilterEvents(fr);
+    };
   }
 })();
+
+    // Generate a summary subtractions report per device/category
+    function generateSubtractionsSummaryReport(){
+      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
+      const visibleRecords = records.filter(r=>{
+        const dev = r.device?.deviceName || "Unknown";
+        if(deviceFilterVal !== ""){
+          return dev === deviceFilterVal;
+        } else {
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
+        }
+      });
+      if(visibleRecords.length === 0) return "No records available for subtractions report.";
+
+      const metisPattern = /\bMetis\b/;
+      const deviceCount = {}, subPerDevice = {};
+
+      visibleRecords.forEach(r => {
+        const dev = r.device?.deviceName || "Unknown";
+        const bucket = metisPattern.test(dev) ? "Metis (All)" : dev;
+        deviceCount[bucket] = (deviceCount[bucket]||0) + 1;
+        subPerDevice[bucket] = subPerDevice[bucket] || {"1W":0,"SR":0,"DUP":0};
+        r._activeFlags.forEach(flag => {
+          if(flag === "1W") subPerDevice[bucket]["1W"]++;
+          if(flag === "SR") subPerDevice[bucket]["SR"]++;
+          if(flag === "DUP") subPerDevice[bucket]["DUP"]++;
+        });
+      });
+
+      let report = `<b>Subtractions Summary</b>:\n\n`;
+      Object.entries(subPerDevice).forEach(([dev, subs]) => {
+        const total = (subs["1W"]||0)+(subs["SR"]||0)+(subs["DUP"]||0);
+        report += `<b>${dev}</b>:\n`
+                + `  Short Utterance: ${subs["1W"]}\n`
+                + `  System Replacement: ${subs["SR"]}\n`
+                + `  Duplicates: ${subs["DUP"]}\n`
+                + `  Total: ${total}\n\n`;
+      });
+
+      return report;
+    }
