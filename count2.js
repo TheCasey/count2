@@ -368,70 +368,7 @@ let filterStartTs = null, filterEndTs = null;
   // ────────────────────────────────────────────── 
   function openFilteredPage(){
     let win = window.open("", "_blank");
-    win.document.write(`<!DOCTYPE html>
-<html>
-  <head>
-    <title>Alexa Utterances</title>
-    <style>
-      body { margin:0; display:flex; height:100vh; font-family:sans-serif; }
-      #leftPanel { width:30%; padding:10px; border-right:1px solid #ccc; overflow:auto; }
-      #rightPanel { width:70%; padding:10px; overflow:auto; }
-      table { width:100%; margin-top:10px; border-collapse:collapse; }
-      th, td { padding:4px; border:1px solid #ccc; font-size:13px; }
-      .modalOverlay { position:fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; }
-      .modal { background:#fff; padding:20px; border-radius:8px; max-height:80vh; overflow:auto; width:80%; }
-      .closeModal { float:right; cursor:pointer; font-size:18px; }
-      .deviceSettings { margin-bottom:10px; padding:5px; border:1px solid #ccc; border-radius:6px; }
-      .deviceSettings label { margin-right:8px; }
-      .viewBtn { font-size:12px; cursor:pointer; margin-left:6px; text-decoration:underline; color:blue; }
-    </style>
-  </head>
-  <body>
-    <div id="leftPanel">
-      <h2>Summary</h2>
-      <div id="summary"></div>
-      <div style="margin-top:10px;">
-        <button id="generateReportBtn">Generate Report</button>
-        <button id="subtractionsReportBtn" style="margin-left:5px;">Subtractions Report</button>
-        <button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button>
-      </div>
-      <hr>
-      <h3>Devices</h3>
-      <div id="deviceList"></div>
-    </div>
-    <div id="rightPanel">
-      <p id="recordCount" style="margin-bottom:10px;font-weight:bold;"></p>
-      <button id="expandAll" style="margin-bottom:10px">Expand All</button>
-      <div id="filtersContainer" style="display:flex;gap:5px;margin-bottom:10px;">
-        <div class="filterRow" style="display:flex;gap:4px;">
-          <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
-          <select class="filterField">
-            <option value="any">Any</option>
-            <option value="time">Time</option>
-            <option value="type">Type</option>
-            <option value="transcript">Transcript</option>
-          </select>
-          <button class="removeFilterBtn" style="display:none;">×</button>
-        </div>
-        <button id="addFilterBtn" style="width:24px;">+</button>
-      </div>
-      <select id="deviceFilter"><option value="">All Devices</option></select>
-      <table>
-        <thead>
-          <tr>
-            <th>Toggle/Flags</th>
-            <th>Time (ET)</th>
-            <th>Profile</th>
-            <th>Device</th>
-            <th>Transcript</th>
-            <th>Type</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
-  </body>
-</html>`);
+    win.document.write('<!DOCTYPE html><html><head><title>Alexa Utterances</title><style>body{margin:0;display:flex;height:100vh;font-family:sans-serif}#leftPanel{width:30%;padding:10px;border-right:1px solid #ccc;overflow:auto}#rightPanel{width:70%;padding:10px;overflow:auto}table{width:100%;margin-top:10px;border-collapse:collapse}th,td{padding:4px;border:1px solid #ccc;font-size:13px}.modalOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center}.modal{background:#fff;padding:20px;border-radius:8px;max-height:80vh;overflow:auto;width:80%}.closeModal{float:right;cursor:pointer;font-size:18px}.deviceSettings{margin-bottom:10px;padding:5px;border:1px solid #ccc;border-radius:6px}.deviceSettings label{margin-right:8px}.viewBtn{font-size:12px;cursor:pointer;margin-left:6px;text-decoration:underline;color:blue}</style></head><body><div id="leftPanel"><h2>Summary</h2><div id="summary"></div><div style="margin-top:10px;"><button id="generateReportBtn">Generate Report</button><button id="subtractionsReportBtn" style="margin-left:5px;">Subtractions Report</button><button id="exportSubsBtn" style="margin-left:5px;">Export Subtractions</button></div><hr><h3>Devices</h3><div id="deviceList"></div></div><div id="rightPanel"><p id="recordCount" style="margin-bottom:10px;font-weight:bold;"></p><button id="expandAll" style="margin-bottom:10px">Expand All</button><div id="filtersContainer" style="display:flex;gap:5px;margin-bottom:10px;"><div class="filterRow" style="display:flex;gap:4px;"><input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;"><select class="filterField"><option value="any">Any</option><option value="time">Time</option><option value="type">Type</option><option value="transcript">Transcript</option></select><button class="removeFilterBtn" style="display:none;">×</button></div><button id="addFilterBtn" style="width:24px;">+</button></div><select id="deviceFilter"><option value="">All Devices</option></select><table><thead><tr><th>Toggle/Flags</th><th>Time (ET)</th><th>Profile</th><th>Device</th><th>Transcript</th><th>Type</th></tr></thead><tbody id="tableBody"></tbody></table></div></body></html>');
     win.document.close();
 
     // Hook up Generate Report button
@@ -539,7 +476,7 @@ let filterStartTs = null, filterEndTs = null;
     records.forEach(r => { 
       if(!r._overrides) r._overrides = { WW:false, "1W":false, SR:false, DUP:false };
     });
-    const wakeWords = ["alexa","hello alexa","hey alexa","ok alexa","hi alexa","hello ziggy","hey ziggy","ok ziggy","hi ziggy","computer","ok computer","hello computer","hey computer","hi computer","ok computer","echo","hey echo","hello echo","hi echo","ok echo"];
+    const wakeWords = ["alexa","hello alexa","hey alexa","ok alexa","hi alexa","hello ziggy","hey ziggy","ok ziggy","hi ziggy","computer","ok computer","hello computer","hey computer","hi computer","ok computer","echo","hey echo","hello echo","hi echo"];
 
     function processRecordFlags(){
       let deviceLastTranscript = {};
@@ -625,6 +562,229 @@ let filterStartTs = null, filterEndTs = null;
           }
         });
       });
+    }
+
+    function detectConversations(records) {
+      const INACTIVITY_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
+      let conversations = [];
+      let currentConvo = null;
+
+      // Sort records by timestamp
+      const sortedRecords = [...records].sort((a, b) => a.timestamp - b.timestamp);
+
+      sortedRecords.forEach(record => {
+        const deviceId = record.device?.deviceName || 'Unknown';
+        const profile = (record.personsInfo && record.personsInfo.length > 0) 
+          ? record.personsInfo[0].personFirstName 
+          : 'Unknown';
+
+        if (!currentConvo) {
+          // Start new conversation
+          currentConvo = {
+            id: 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            deviceId: deviceId,
+            profile: profile,
+            utterances: [record],
+            startTime: record.timestamp,
+            endTime: record.timestamp,
+            topic: null
+          };
+        } else {
+          const timeDiff = record.timestamp - currentConvo.endTime;
+          const sameContext = deviceId === currentConvo.deviceId && 
+                            profile === currentConvo.profile;
+
+          if (timeDiff < INACTIVITY_THRESHOLD && sameContext) {
+            // Add to current conversation
+            currentConvo.utterances.push(record);
+            currentConvo.endTime = record.timestamp;
+          } else {
+            // Finalize current conversation
+            currentConvo.topic = inferTopic(currentConvo.utterances);
+            conversations.push(currentConvo);
+            
+            // Start new conversation
+            currentConvo = {
+              id: 'conv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+              deviceId: deviceId,
+              profile: profile,
+              utterances: [record],
+              startTime: record.timestamp,
+              endTime: record.timestamp,
+              topic: null
+            };
+          }
+        }
+      });
+
+      // Add final conversation if exists
+      if (currentConvo) {
+        currentConvo.topic = inferTopic(currentConvo.utterances);
+        conversations.push(currentConvo);
+      }
+
+      return conversations;
+    }
+
+    function inferTopic(utterances) {
+      // Common topic keywords and their weights
+      const topicKeywords = {
+        weather: ['weather', 'temperature', 'forecast', 'rain', 'sunny'],
+        music: ['play', 'song', 'music', 'playlist', 'album', 'artist'],
+        smarthome: ['turn', 'on', 'off', 'lights', 'thermostat', 'lock', 'door'],
+        timer: ['timer', 'alarm', 'reminder', 'wake'],
+        calendar: ['schedule', 'appointment', 'calendar', 'event'],
+        shopping: ['buy', 'order', 'cart', 'purchase', 'shopping'],
+        information: ['what', 'how', 'when', 'where', 'why', 'tell', 'me', 'about']
+      };
+
+      // Count keyword occurrences
+      const topicScores = {};
+      utterances.forEach(record => {
+        const text = record._transcript.toLowerCase();
+        
+        Object.entries(topicKeywords).forEach(([topic, keywords]) => {
+          topicScores[topic] = topicScores[topic] || 0;
+          keywords.forEach(keyword => {
+            if (text.includes(keyword)) {
+              topicScores[topic]++;
+            }
+          });
+        });
+      });
+
+      // Find dominant topic
+      let dominantTopic = null;
+      let highestScore = 0;
+      Object.entries(topicScores).forEach(([topic, score]) => {
+        if (score > highestScore) {
+          highestScore = score;
+          dominantTopic = topic;
+        }
+      });
+
+      // If no clear topic found, try to extract key terms
+      if (!dominantTopic || highestScore === 0) {
+        const words = utterances
+          .map(r => r._transcript.toLowerCase())
+          .join(' ')
+          .split(/\\s+/)
+          .filter(w => w.length > 3)
+          .filter(w => !['alexa', 'echo', 'computer', 'the', 'and', 'that'].includes(w));
+        
+        // Get most frequent meaningful words
+        const wordFreq = {};
+        words.forEach(w => wordFreq[w] = (wordFreq[w] || 0) + 1);
+        const topWords = Object.entries(wordFreq)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2)
+          .map(([word]) => word);
+        
+        return topWords.length ? topWords.join('-') + ' related' : 'general interaction';
+      }
+
+      return dominantTopic.charAt(0).toUpperCase() + dominantTopic.slice(1);
+    }
+
+    function renderConversationsView() {
+      const convoPanel = document.createElement('div');
+      convoPanel.id = 'conversationsPanel';
+      convoPanel.style = 'position:fixed;right:20px;top:20px;width:300px;' +
+                        'background:#fff;padding:15px;border-radius:8px;' +
+                        'box-shadow:0 2px 10px rgba(0,0,0,0.1);max-height:80vh;overflow:auto;';
+      
+      const conversations = detectConversations(records);
+      
+      convoPanel.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+        '<h3 style="margin:0;">Conversations (' + conversations.length + ')</h3>' +
+        '<button id="closeConvoPanel" style="border:none;background:none;cursor:pointer;">✖</button>' +
+        '</div>' +
+        '<input type="text" id="topicFilter" placeholder="Filter by topic..." ' +
+        'style="width:100%;padding:5px;margin-bottom:10px;border:1px solid #ccc;border-radius:4px;">' +
+        '<div id="conversationsList"></div>';
+
+      win.document.body.appendChild(convoPanel);
+
+      // Add close button handler
+      win.document.getElementById('closeConvoPanel').onclick = () => convoPanel.remove();
+
+      // Render conversations
+      function renderConversationsList(filterText = '') {
+        const listDiv = win.document.getElementById('conversationsList');
+        listDiv.innerHTML = '';
+
+        conversations
+          .filter(c => !filterText || 
+                      c.topic.toLowerCase().includes(filterText.toLowerCase()))
+          .forEach((convo, idx) => {
+            const convoDiv = document.createElement('div');
+            convoDiv.style = 'border:1px solid #eee;margin-bottom:8px;padding:8px;border-radius:4px;';
+            
+            const startTime = new Date(convo.startTime)
+              .toLocaleTimeString('en-US', {timeZone:'America/New_York'});
+            const endTime = new Date(convo.endTime)
+              .toLocaleTimeString('en-US', {timeZone:'America/New_York'});
+
+            convoDiv.innerHTML = 
+              '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">' +
+              '<strong>Topic: ' + convo.topic + '</strong>' +
+              '<span style="color:#666;">' + convo.utterances.length + ' utterances</span>' +
+              '</div>' +
+              '<div style="font-size:0.9em;color:#666;margin-bottom:5px;">' +
+              startTime + ' - ' + endTime +
+              '</div>' +
+              '<div style="font-size:0.9em;color:#666;margin-bottom:5px;">' +
+              'Device: ' + convo.deviceId +
+              '</div>' +
+              '<button class="toggleConvo" data-idx="' + idx + '" ' +
+              'style="border:none;background:#f0f0f0;padding:4px 8px;border-radius:4px;cursor:pointer;">' +
+              'Show Utterances</button>' +
+              '<div class="convoUtterances" id="convo_' + idx + '" style="display:none;margin-top:8px;"></div>';
+          
+            listDiv.appendChild(convoDiv);
+          });
+
+        // Add toggle handlers
+        [...win.document.querySelectorAll('.toggleConvo')].forEach(btn => {
+          btn.onclick = function() {
+            const idx = this.getAttribute('data-idx');
+            const utterancesDiv = win.document.getElementById('convo_' + idx);
+            const convo = conversations[idx];
+            
+            if (utterancesDiv.style.display === 'none') {
+              utterancesDiv.style.display = 'block';
+              utterancesDiv.innerHTML = convo.utterances
+                .map(u => '<div style="margin-bottom:4px;padding:4px;background:#f9f9f9;">' +
+                         u._transcript +
+                         '</div>')
+                .join('');
+              this.textContent = 'Hide Utterances';
+            } else {
+              utterancesDiv.style.display = 'none';
+              this.textContent = 'Show Utterances';
+            }
+          };
+        });
+      }
+
+      // Add filter handler
+      win.document.getElementById('topicFilter').oninput = function(e) {
+        renderConversationsList(e.target.value);
+      };
+
+      // Initial render
+      renderConversationsList();
+    }
+
+    // Add button to show conversations view
+    function addConversationsButton() {
+      const btn = win.document.createElement('button');
+      btn.textContent = 'Show Conversations';
+      btn.style = 'margin-left:10px;';
+      btn.onclick = renderConversationsView;
+      
+      const expandAllBtn = win.document.getElementById('expandAll');
+      expandAllBtn.parentNode.insertBefore(btn, expandAllBtn.nextSibling);
     }
 
     function renderData(){
@@ -840,7 +1000,7 @@ let filterStartTs = null, filterEndTs = null;
           month: "2-digit",
           day: "2-digit"
         });
-      let report = `<b>Week</b>: ${startStr} - ${endStr}\n`;
+      let report = '<b>Week</b>: ' + startStr + ' - ' + endStr + '\\n';
 
       // Assigned devices (merge Metis variants)
       const assignedRaw = Object.entries(deviceSettings)
@@ -851,64 +1011,55 @@ let filterStartTs = null, filterEndTs = null;
       const assignedNonMetis = assignedRaw.filter(d => !metisPattern.test(d));
       const assignedDevices = assignedNonMetis.slice();
       if (assignedMetis.length > 0) assignedDevices.push("Metis (All)");
-      report += `<b>Assigned Devices</b>: ${assignedDevices.join(", ")}\n`;
-      report += "<b>Recommendation</b>:\n";
-
-      // Estimated Valid (overall)
-      report += "<b>Estimated Valid</b>:";
+      report += '<b>Assigned Devices</b>: ' + assignedDevices.join(", ") + '\\n';
+      report += '<b>Recommendation</b>:\\n';
+      report += '<b>Estimated Valid</b>:';
       assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
-        report += `${dev}: ${valid}\n`;
+        report += dev + ': ' + valid + '\\n';
       });
-
-      // Testing Time
-      report += "<b>Testing Time:</b> ";
+      report += '<b>Testing Time:</b> ';
       const firstValidStr = firstValidTs
         ? new Date(firstValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
         : "N/A";
       const lastValidStr  = lastValidTs
         ? new Date(lastValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
         : "N/A";
-      report += `First Valid: ${firstValidStr} - `;
-      report += `Last Valid: ${lastValidStr}\n`;
-      report += "<b>Things to Try</b>:\n";
-      report += "<b>Audit Comment</b>:\n";
-      report += "<b>Areas of Improvement</b>:\n";
-      report += "<b>Tester Contacted?</b>:\n";
-      report += "<b>Tester Acknowledgement/Feedback Screenshot?</b>:\n";
-      // Daily Overview
-      report += "<b>Daily Usage</b>:\n";
+      report += 'First Valid: ' + firstValidStr + ' - ';
+      report += 'Last Valid: ' + lastValidStr + '\\n';
+      report += '<b>Things to Try</b>:\\n';
+      report += '<b>Audit Comment</b>:\\n';
+      report += '<b>Areas of Improvement</b>:\\n';
+      report += '<b>Tester Contacted?</b>:\\n';
+      report += '<b>Tester Acknowledgement/Feedback Screenshot?</b>:\\n';
+      report += '<b>Daily Usage</b>:\\n';
       Object.entries(dailyCount).forEach(([day,c]) => {
-        report += `${day}: ${c}\n`;
+        report += day + ': ' + c + '\\n';
       });
-      // Subtractions section
-      report += "<b>Subtractions</b>:\n";
-      report += "Total Lines:\n";
+      report += '<b>Subtractions</b>:\\n';
+      report += 'Total Lines:\\n';
       assignedDevices.forEach(dev => {
-        report += `${dev}: ${deviceCount[dev]||0}\n`;
+        report += dev + ': ' + (deviceCount[dev]||0) + '\\n';
       });
-      report += "\n";
+      report += '\\n';
       assignedDevices.forEach(dev => {
         const subs = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const tot = subs["1W"] + subs["SR"] + subs["DUP"];
-        report += `${dev}:\n` +
-                  `  Short Utterance: ${subs["1W"]}\n` +
-                  `  System Replacement: ${subs["SR"]}\n` +
-                  `  Duplicates: ${subs["DUP"]}\n` +
-                  `  Total: ${tot}\n`;
+        report += dev + ':\\n' +
+                  '  Short Utterance: ' + subs["1W"] + '\\n' +
+                  '  System Replacement: ' + subs["SR"] + '\\n' +
+                  '  Duplicates: ' + subs["DUP"] + '\\n' +
+                  '  Total: ' + tot + '\\n';
       });
-
-      // Estimated Valid again under subtractions
-      report += "Estimated Valid:\n";
+      report += 'Estimated Valid:\\n';
       assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
-        report += `${dev}: ${valid}\n`;
+        report += dev + ': ' + valid + '\\n';
       });
-
       return report;
     }
 
@@ -939,14 +1090,14 @@ let filterStartTs = null, filterEndTs = null;
         });
       });
 
-      let report = `<b>Subtractions Summary</b>:\n\n`;
+      let report = '<b>Subtractions Summary</b>:\\n\\n';
       Object.entries(subPerDevice).forEach(([dev, subs]) => {
         const total = (subs["1W"]||0)+(subs["SR"]||0)+(subs["DUP"]||0);
-        report += `<b>${dev}</b>:\n`
-                + `  Short Utterance: ${subs["1W"]}\n`
-                + `  System Replacement: ${subs["SR"]}\n`
-                + `  Duplicates: ${subs["DUP"]}\n`
-                + `  Total: ${total}\n\n`;
+        report += '<b>' + dev + '</b>:\\n'
+                + '  Short Utterance: ' + subs["1W"] + '\\n'
+                + '  System Replacement: ' + subs["SR"] + '\\n'
+                + '  Duplicates: ' + subs["DUP"] + '\\n'
+                + '  Total: ' + total + '\\n\\n';
       });
 
       return report;
@@ -1067,16 +1218,15 @@ let filterStartTs = null, filterEndTs = null;
         headerCols += '<th>Type</th>';
       }
       headerCols += '<th>Transcript</th><th>Override?</th>';
-      modal.innerHTML = `<span class="closeModal">✖</span>
-        <h3>Override for ${category}</h3>
-        <table>
-          <thead>
-            <tr>${headerCols}</tr>
-          </thead>
-          <tbody id="modalBody"></tbody>
-        </table>
-        <button id="resetOverrides">Reset Overrides</button>
-      `;
+      modal.innerHTML = '<span class="closeModal">✖</span>' +
+        '<h3>Override for ' + category + '</h3>' +
+        '<table>' +
+          '<thead>' +
+            '<tr>' + headerCols + '</tr>' +
+          '</thead>' +
+          '<tbody id="modalBody"></tbody>' +
+        '</table>' +
+        '<button id="resetOverrides">Reset Overrides</button>';
       modalOverlay.appendChild(modal);
       win.document.body.appendChild(modalOverlay);
       
@@ -1091,12 +1241,12 @@ let filterStartTs = null, filterEndTs = null;
       visibleRecords.forEach((r, i)=>{
         if(r._activeFlags.includes(category) || r._overrides[category]){
           let tr = win.document.createElement("tr");
-          let rowHtml = `<td>${et(r.timestamp)}</td><td>${r.device?.deviceName || "Unknown"}</td>`;
+          let rowHtml = '<td>' + et(r.timestamp) + '</td><td>' + r.device?.deviceName || "Unknown" + '</td>';
           if (category === 'SR') {
-            rowHtml += `<td>${r.utteranceType || r.intent || ""}</td>`;
+            rowHtml += '<td>' + (r.utteranceType || r.intent || "") + '</td>';
           }
-          rowHtml += `<td>${r._transcript}</td>
-            <td><input type="checkbox" data-i="${i}" data-cat="${category}" ${r._overrides[category] ? "checked" : ""}></td>`;
+          rowHtml += '<td>' + r._transcript + '</td>' +
+            '<td><input type="checkbox" data-i="' + i + '" data-cat="' + category + '" ' + (r._overrides[category] ? "checked" : "") + '></td>';
           tr.innerHTML = rowHtml;
           modalBody.appendChild(tr);
         }
@@ -1113,7 +1263,7 @@ let filterStartTs = null, filterEndTs = null;
       });
       
       modal.querySelector("#resetOverrides").onclick = function(){
-        visibleRecords.forEach(r=>{ r._overrides[category] = false; });
+        visibleRecords.forEach(r=>{ r._overrides[cat] = false; });
         renderData();
         [...modalBody.querySelectorAll("input[type=checkbox]")].forEach(chk=>{
           chk.checked = false;
@@ -1156,5 +1306,13 @@ let filterStartTs = null, filterEndTs = null;
     renderData();
     renderDeviceSettings();
     enhanceFiltersContainer();
+    addConversationsButton();
   }
-})();
+})();`;
+
+  return {
+    target_file: "count2.js",
+    instructions: "I will fix template literal escaping and string formatting issues throughout the code",
+    code_edit: edit
+  };
+}
