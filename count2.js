@@ -193,23 +193,22 @@ let filterStartTs = null, filterEndTs = null;
   (function createUIPanel(){
     let panel = document.createElement("div");
     panel.style = "position:fixed;top:10px;left:10px;z-index:99999;background:#fff;padding:12px;border-radius:8px;box-shadow:0 0 10px rgba(0,0,0,0.4);font-family:sans-serif;width:330px;font-size:14px;";
-    panel.innerHTML = `
-      <b>🗓️ Custom Alexa Utterance Export</b><br><br>
-      <label>Start Date (ET):</label><br>
-      <input type="date" id="startDate"><br>
-      <input type="number" id="startHour" min="1" max="12" value="8" style="width:40px;"> :
-      <input type="number" id="startMin" min="0" max="59" value="0" style="width:40px;">
-      <select id="startAMPM"><option>AM</option><option selected>PM</option></select><br><br>
-      <label>End Date (ET):</label><br>
-      <input type="date" id="endDate"><br>
-      <input type="number" id="endHour" min="1" max="12" value="6" style="width:40px;"> :
-      <input type="number" id="endMin" min="0" max="59" value="0" style="width:40px;">
-      <select id="endAMPM"><option selected>PM</option><option>AM</option></select><br><br>
-      <button id="fetchBtn">📡 Fetch Utterances</button><br><br>
-      <button id="breakdownBtn">📊 Usage Breakdown</button><br><br>
-      <button id="htmlBtn" disabled>🧾 Open Filtered Page</button>
-      <pre id="fetchLog" style="max-height:120px;overflow:auto;margin-top:10px;background:#f0f0f0;padding:6px;border-radius:6px;"></pre>
-    `;
+    panel.innerHTML = 
+      '<b>🗓️ Custom Alexa Utterance Export</b><br><br>' +
+      '<label>Start Date (ET):</label><br>' +
+      '<input type="date" id="startDate"><br>' +
+      '<input type="number" id="startHour" min="1" max="12" value="8" style="width:40px;"> :' +
+      '<input type="number" id="startMin" min="0" max="59" value="0" style="width:40px;">' +
+      '<select id="startAMPM"><option>AM</option><option selected>PM</option></select><br><br>' +
+      '<label>End Date (ET):</label><br>' +
+      '<input type="date" id="endDate"><br>' +
+      '<input type="number" id="endHour" min="1" max="12" value="6" style="width:40px;"> :' +
+      '<input type="number" id="endMin" min="0" max="59" value="0" style="width:40px;">' +
+      '<select id="endAMPM"><option selected>PM</option><option>AM</option></select><br><br>' +
+      '<button id="fetchBtn">📡 Fetch Utterances</button><br><br>' +
+      '<button id="breakdownBtn">📊 Usage Breakdown</button><br><br>' +
+      '<button id="htmlBtn" disabled>🧾 Open Filtered Page</button>' +
+      '<pre id="fetchLog" style="max-height:120px;overflow:auto;margin-top:10px;background:#f0f0f0;padding:6px;border-radius:6px;"></pre>';
     document.body.appendChild(panel);
     document.getElementById("fetchBtn").onclick = fetchUtterances;
     document.getElementById("htmlBtn").onclick = openFilteredPage;
@@ -250,7 +249,6 @@ let filterStartTs = null, filterEndTs = null;
       dropdown.style = 'margin-bottom:10px;';
       // Helper to regenerate breakdown content
       function updateBreakdownView(deviceFilter) {
-        // Group by day/hour per device, then filter by selected device
         const breakdown = {};
         records.forEach(r => {
           const dev = r.device?.deviceName || "Unknown";
@@ -270,10 +268,10 @@ let filterStartTs = null, filterEndTs = null;
         const lines = ["<b>Daily Usage (ET):</b>"];
         Object.entries(breakdown).forEach(([date, hours]) => {
           const total = Object.values(hours).reduce((a,b)=>a+b,0);
-          lines.push(`${date}: ${total}`);
+          lines.push(date + ': ' + total);
           Object.entries(hours).sort((a,b)=>new Date('1/1/1970 '+a[0]) - new Date('1/1/1970 '+b[0]))
             .forEach(([hour, count]) => {
-              lines.push(`  ${hour}: ${count}`);
+              lines.push('  ' + hour + ': ' + count);
             });
         });
         contentDiv.innerHTML = lines.join('<br>');
@@ -337,12 +335,16 @@ let filterStartTs = null, filterEndTs = null;
     
     let startTs = getTimestamp(startDateVal, startHour, startMin, startAMPM);
     let endTs = getTimestamp(endDateVal, endHour, endMin, endAMPM);
-    if(!confirm(`Fetch Alexa utterances between:\nStart: ${new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"})}\nEnd: ${new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"})}?`)){
+    if(!confirm('Fetch Alexa utterances between:\nStart: ' + 
+        new Date(startTs).toLocaleString("en-US",{timeZone:"America/New_York"}) + 
+        '\nEnd: ' + new Date(endTs).toLocaleString("en-US",{timeZone:"America/New_York"}) + 
+        '?')){
       return;
     }
     filterStartTs = startTs;
     filterEndTs = endTs;
-    let apiUrl = `https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=${startTs}&endTime=${endTs}&disableGlobalNav=false`;
+    let apiUrl = 'https://www.amazon.com/alexa-privacy/apd/rvh/customer-history-records-v2?startTime=' + 
+                startTs + '&endTime=' + endTs + '&disableGlobalNav=false';
     let headers = { ...capturedFetch.init.headers };
     let method = "POST";
     let credentials = "include";
@@ -356,10 +358,10 @@ let filterStartTs = null, filterEndTs = null;
       let recs = json.customerHistoryRecords || [];
       token = json.encodedRequestToken;
       records.push(...recs);
-      logMsg(`📦 ${records.length} so far...`);
+      logMsg('📦 ' + records.length + ' so far...');
       await new Promise(r => setTimeout(r,300));
     } while(token);
-    logMsg(`✅ Done! ${records.length} total.`);
+    logMsg('✅ Done! ' + records.length + ' total.');
     document.getElementById("htmlBtn").disabled = false;
   }
 
@@ -413,59 +415,54 @@ let filterStartTs = null, filterEndTs = null;
     // Generate a detailed subtractions report per device/category
     function generateSubtractionsReport(){
       const deviceFilterVal = win.document.getElementById('deviceFilter').value;
-      // Determine which devices to include
       const devices = deviceFilterVal
         ? [deviceFilterVal]
         : Object.keys(deviceSettings).filter(d => deviceSettings[d].assigned);
-      // Identify Metis devices
       const metisPattern = /\bMetis\b/;
       const metisDevices = devices.filter(d => metisPattern.test(d));
       const nonMetisDevices = devices.filter(d => !metisPattern.test(d));
       const reportLines = ['Detailed Subtractions:'];
-      // Aggregate Metis (All)
+      
       if (metisDevices.length > 0) {
-        const metisRecs = records.filter(r => metisPattern.test(r.device?.deviceName || 'Unknown') && devices.includes(r.device?.deviceName || 'Unknown'));
-        const shortList = [];
-        const srList = [];
-        const dupList = [];
+        const metisRecs = records.filter(r => 
+          metisPattern.test(r.device?.deviceName || 'Unknown') && 
+          devices.includes(r.device?.deviceName || 'Unknown')
+        );
+        const shortList = [], srList = [], dupList = [];
         metisRecs.forEach(r => {
           if (r._activeFlags.includes('1W')) shortList.push(r._transcript);
           if (r._activeFlags.includes('SR')) {
             const typeLabel = r.utteranceType || r.intent || '';
-            srList.push(`${r._transcript} (${typeLabel})`);
+            srList.push(r._transcript + ' (' + typeLabel + ')');
           }
           if (r._activeFlags.includes('DUP')) dupList.push(r._transcript);
         });
-        reportLines.push('', `Device: Metis (All)`);
-        reportLines.push(`Short Utterances: ${shortList.length}`);
+        reportLines.push('', 'Device: Metis (All)');
+        reportLines.push('Short Utterances: ' + shortList.length);
         shortList.forEach(item => reportLines.push(item));
-        reportLines.push(`System Replacement: ${srList.length}`);
+        reportLines.push('System Replacement: ' + srList.length);
         srList.forEach(item => reportLines.push(item));
-        reportLines.push(`Duplicates: ${dupList.length}`);
+        reportLines.push('Duplicates: ' + dupList.length);
         dupList.forEach(item => reportLines.push(item));
       }
-      // Non-Metis devices
+      
       nonMetisDevices.forEach(dev => {
-        reportLines.push('', `Device: ${dev}`);
-        // Gather records for this device
+        reportLines.push('', 'Device: ' + dev);
         const devRecs = records.filter(r => (r.device?.deviceName || 'Unknown') === dev);
-        // Collect per-category entries
-        const shortList = [];
-        const srList = [];
-        const dupList = [];
+        const shortList = [], srList = [], dupList = [];
         devRecs.forEach(r => {
           if (r._activeFlags.includes('1W')) shortList.push(r._transcript);
           if (r._activeFlags.includes('SR')) {
             const typeLabel = r.utteranceType || r.intent || '';
-            srList.push(`${r._transcript} (${typeLabel})`);
+            srList.push(r._transcript + ' (' + typeLabel + ')');
           }
           if (r._activeFlags.includes('DUP')) dupList.push(r._transcript);
         });
-        reportLines.push(`Short Utterances: ${shortList.length}`);
+        reportLines.push('Short Utterances: ' + shortList.length);
         shortList.forEach(item => reportLines.push(item));
-        reportLines.push(`System Replacement: ${srList.length}`);
+        reportLines.push('System Replacement: ' + srList.length);
         srList.forEach(item => reportLines.push(item));
-        reportLines.push(`Duplicates: ${dupList.length}`);
+        reportLines.push('Duplicates: ' + dupList.length);
         dupList.forEach(item => reportLines.push(item));
       });
       return reportLines.join('\n');
@@ -805,8 +802,8 @@ let filterStartTs = null, filterEndTs = null;
       let wwCounts = {}, subCounts = { "1W":0, "SR":0, "DUP":0 };
       let deviceCount = {}, dailyCount = {};
       let firstTs = null, lastTs = null;
-      // Track subtractions per device for valid calculation
       let subPerDevice = {};
+      
       visibleRecords.forEach((r, idx) => {
         let time = et(r.timestamp);
         let dev = (r.device && r.device.deviceName) ? r.device.deviceName : "Unknown";
@@ -819,7 +816,7 @@ let filterStartTs = null, filterEndTs = null;
           let ww = r._detectedWW;
           wwCounts[ww] = (wwCounts[ww] || 0) + 1;
         }
-        // Increment global and per-device subtraction counts
+        
         subPerDevice[dev] = subPerDevice[dev] || { "1W":0, "SR":0, "DUP":0 };
         r._activeFlags.forEach(flag => {
           if(flag === "1W") {
@@ -835,10 +832,11 @@ let filterStartTs = null, filterEndTs = null;
             subPerDevice[dev]["DUP"]++;
           }
         });
+        
         let tr = win.document.createElement("tr");
         let flagsText = r._activeFlags.join(", ");
         let toggleCell = tr.insertCell(0);
-        toggleCell.innerHTML = `<button class='toggle' data-idx='${idx}'>▶</button> ${flagsText}`;
+        toggleCell.innerHTML = '<button class="toggle" data-idx="' + idx + '">▶</button> ' + flagsText;
         let tb = toggleCell.querySelector("button.toggle");
         tb.addEventListener("click", function(){
           let target = win.document.getElementById("resp" + idx);
@@ -846,20 +844,17 @@ let filterStartTs = null, filterEndTs = null;
             target.style.display = (target.style.display==="none"||target.style.display==="")?"table-row":"none";
           }
         });
-        // Time
+        
         tr.insertCell(1).innerText = et(r.timestamp);
-        // Profile (from personsInfo)
         let profile = (r.personsInfo && r.personsInfo.length>0) 
                       ? r.personsInfo[0].personFirstName 
                       : "";
         tr.insertCell(2).innerText = profile;
-        // Device
         tr.insertCell(3).innerText = dev;
-        // Transcript
         tr.insertCell(4).innerText = r._transcript;
-        // Type
         tr.insertCell(5).innerText = r.utteranceType || r.intent || "";
         tbody.appendChild(tr);
+        
         let response = "";
         if(Array.isArray(r.voiceHistoryRecordItems)){
           const responseTypes = ["tts_replacement_text", "alexa_response"];
@@ -872,61 +867,47 @@ let filterStartTs = null, filterEndTs = null;
           }
         }
         let tr2 = win.document.createElement("tr");
-        tr2.id = `resp${idx}`;
+        tr2.id = "resp" + idx;
         tr2.style.display = "none";
-        tr2.innerHTML = `<td colspan='6' style='background:#f9f9f9'><b>Alexa:</b> ${response}</td>`;
+        tr2.innerHTML = '<td colspan="6" style="background:#f9f9f9"><b>Alexa:</b> ' + response + '</td>';
         tbody.appendChild(tr2);
       });
+      
       let wwTotal = Object.values(wwCounts).reduce((a,b)=>a+b,0);
       let wwPct = totalUtterances ? Math.round(wwTotal/totalUtterances*100) : 0;
-      let summaryHTML = `
-        <p><b>First Valid:</b> ${firstTs ? et(firstTs) : "N/A"}</p>
-        <p><b>Last Valid:</b> ${lastTs ? et(lastTs) : "N/A"}</p>
-        <h4>Daily Overview</h4>
-        <ul>${Object.entries(dailyCount).map(([d,c])=>`<li>${d}: ${c}</li>`).join('')}</ul>
-        <h4>Device Overview:</h4>
-        <ul>${Object.entries(deviceCount).map(([d,c])=>`<li>${d}: ${c}</li>`).join('')}</ul>
-        <h4>Wake Words:</h4>
-        <ul>${Object.entries(wwCounts).map(([w,c])=>`<li>${w}: ${c}</li>`).join('')}</ul>
-        <p>Total WW: ${wwTotal} (${wwPct}% of utterances)</p>
-      `;
-      // Clamp subtraction counts so they stay within [0, totalUtterances]
-      subCounts["1W"] = Math.max(0, Math.min(subCounts["1W"], totalUtterances));
-      subCounts["SR"] = Math.max(0, Math.min(subCounts["SR"], totalUtterances));
-      subCounts["DUP"] = Math.max(0, Math.min(subCounts["DUP"], totalUtterances));
-      summaryHTML += `
-        <h4>Subtractions:</h4>
-        <ul>
-          <li>System Replacement: ${subCounts["SR"]} <span class="viewBtn" data-cat="SR">(view)</span></li>
-          <li>Short Utterances: ${subCounts["1W"]} <span class="viewBtn" data-cat="1W">(view)</span></li>
-          <li>Duplicates: ${subCounts["DUP"]} <span class="viewBtn" data-cat="DUP">(view)</span></li>
-        </ul>
-      `;
-      // Compute and clamp estimated valid utterances
-      const validCount = Math.max(
-        0,
-        totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"]
-      );
-      summaryHTML += `<p><b>Estimated Valid Utterances:</b> ${validCount}</p>`;
-      // Estimated valid utterances per device
-      summaryHTML += `<h4>Estimated Valid Per Device:</h4><ul>${
+      let summaryHTML = '<p><b>First Valid:</b> ' + (firstTs ? et(firstTs) : "N/A") + '</p>' +
+        '<p><b>Last Valid:</b> ' + (lastTs ? et(lastTs) : "N/A") + '</p>' +
+        '<h4>Daily Overview</h4>' +
+        '<ul>' + Object.entries(dailyCount).map(([d,c]) => '<li>' + d + ': ' + c + '</li>').join('') + '</ul>' +
+        '<h4>Device Overview:</h4>' +
+        '<ul>' + Object.entries(deviceCount).map(([d,c]) => '<li>' + d + ': ' + c + '</li>').join('') + '</ul>' +
+        '<h4>Wake Words:</h4>' +
+        '<ul>' + Object.entries(wwCounts).map(([w,c]) => '<li>' + w + ': ' + c + '</li>').join('') + '</ul>' +
+        '<p>Total WW: ' + wwTotal + ' (' + wwPct + '% of utterances)</p>';
+
+      summaryHTML += '<h4>Subtractions:</h4>' +
+        '<ul>' +
+        '<li>System Replacement: ' + subCounts["SR"] + ' <span class="viewBtn" data-cat="SR">(view)</span></li>' +
+        '<li>Short Utterances: ' + subCounts["1W"] + ' <span class="viewBtn" data-cat="1W">(view)</span></li>' +
+        '<li>Duplicates: ' + subCounts["DUP"] + ' <span class="viewBtn" data-cat="DUP">(view)</span></li>' +
+        '</ul>';
+
+      const validCount = Math.max(0, totalUtterances - subCounts["1W"] - subCounts["SR"] - subCounts["DUP"]);
+      summaryHTML += '<p><b>Estimated Valid Utterances:</b> ' + validCount + '</p>';
+      summaryHTML += '<h4>Estimated Valid Per Device:</h4><ul>' + 
         Object.entries(deviceCount).map(([d, count]) => {
           const subs = subPerDevice[d] || { "1W":0, "SR":0, "DUP":0 };
           const valid = Math.max(0, count - (subs["1W"] + subs["SR"] + subs["DUP"]));
-          return `<li>${d}: ${valid}</li>`;
-        }).join('')
-      }</ul>`;
-      win.document.getElementById("summary").innerHTML = summaryHTML;
+          return '<li>' + d + ': ' + valid + '</li>';
+        }).join('') + '</ul>';
 
-      // Update record count at the top of #rightPanel
+      win.document.getElementById("summary").innerHTML = summaryHTML;
       const recordCountElem = win.document.getElementById("recordCount");
       if (recordCountElem) {
-        recordCountElem.textContent = `Showing ${visibleRecords.length} records`;
+        recordCountElem.textContent = 'Showing ' + visibleRecords.length + ' records';
       }
       
-      // Preserve selected device filter if possible.
-      let currentVal = deviceFilter.value;
-      deviceFilter.innerHTML = `<option value="">All Devices</option>`;
+      deviceFilter.innerHTML = '<option value="">All Devices</option>';
       Object.keys(deviceSettings).forEach(dev=>{
         if(deviceSettings[dev].assigned){
           let opt = win.document.createElement("option");
@@ -1000,7 +981,7 @@ let filterStartTs = null, filterEndTs = null;
           month: "2-digit",
           day: "2-digit"
         });
-      let report = '<b>Week</b>: ' + startStr + ' - ' + endStr + '\\n';
+      let report = '<b>Week</b>: ' + startStr + ' - ' + endStr + '\n';
 
       // Assigned devices (merge Metis variants)
       const assignedRaw = Object.entries(deviceSettings)
@@ -1011,14 +992,15 @@ let filterStartTs = null, filterEndTs = null;
       const assignedNonMetis = assignedRaw.filter(d => !metisPattern.test(d));
       const assignedDevices = assignedNonMetis.slice();
       if (assignedMetis.length > 0) assignedDevices.push("Metis (All)");
-      report += '<b>Assigned Devices</b>: ' + assignedDevices.join(", ") + '\\n';
-      report += '<b>Recommendation</b>:\\n';
+      report += '<b>Assigned Devices</b>: ' + assignedDevices.join(", ") + '\n';
+      report += '<b>Recommendation</b>:';
+      report += '\n';
       report += '<b>Estimated Valid</b>:';
       assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
-        report += dev + ': ' + valid + '\\n';
+        report += dev + ': ' + valid + '\n';
       });
       report += '<b>Testing Time:</b> ';
       const firstValidStr = firstValidTs
@@ -1028,37 +1010,46 @@ let filterStartTs = null, filterEndTs = null;
         ? new Date(lastValidTs).toLocaleString("en-US",{timeZone:"America/New_York"})
         : "N/A";
       report += 'First Valid: ' + firstValidStr + ' - ';
-      report += 'Last Valid: ' + lastValidStr + '\\n';
-      report += '<b>Things to Try</b>:\\n';
-      report += '<b>Audit Comment</b>:\\n';
-      report += '<b>Areas of Improvement</b>:\\n';
-      report += '<b>Tester Contacted?</b>:\\n';
-      report += '<b>Tester Acknowledgement/Feedback Screenshot?</b>:\\n';
-      report += '<b>Daily Usage</b>:\\n';
+      report += 'Last Valid: ' + lastValidStr + '\n';
+      report += '<b>Things to Try</b>:';
+      report += '\n';
+      report += '<b>Audit Comment</b>:';
+      report += '\n';
+      report += '<b>Areas of Improvement</b>:';
+      report += '\n';
+      report += '<b>Tester Contacted?</b>:';
+      report += '\n';
+      report += '<b>Tester Acknowledgement/Feedback Screenshot?</b>:';
+      report += '\n';
+      report += '<b>Daily Usage</b>:';
       Object.entries(dailyCount).forEach(([day,c]) => {
-        report += day + ': ' + c + '\\n';
+        report += day + ': ' + c + '\n';
       });
-      report += '<b>Subtractions</b>:\\n';
-      report += 'Total Lines:\\n';
+      report += '<b>Subtractions</b>:';
+      report += '\n';
+      report += 'Total Lines:';
+      report += '\n';
       assignedDevices.forEach(dev => {
-        report += dev + ': ' + (deviceCount[dev]||0) + '\\n';
+        report += dev + ': ' + (deviceCount[dev]||0) + '\n';
       });
-      report += '\\n';
+      report += '\n';
       assignedDevices.forEach(dev => {
         const subs = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const tot = subs["1W"] + subs["SR"] + subs["DUP"];
-        report += dev + ':\\n' +
-                  '  Short Utterance: ' + subs["1W"] + '\\n' +
-                  '  System Replacement: ' + subs["SR"] + '\\n' +
-                  '  Duplicates: ' + subs["DUP"] + '\\n' +
-                  '  Total: ' + tot + '\\n';
+        report += dev + ':';
+        report += '\n';
+        report += '  Short Utterance: ' + subs["1W"] + '\n';
+        report += '  System Replacement: ' + subs["SR"] + '\n';
+        report += '  Duplicates: ' + subs["DUP"] + '\n';
+        report += '  Total: ' + tot + '\n';
       });
-      report += 'Estimated Valid:\\n';
+      report += 'Estimated Valid:';
+      report += '\n';
       assignedDevices.forEach(dev => {
         const total = deviceCount[dev] || 0;
         const subs  = subPerDevice[dev] || {"1W":0,"SR":0,"DUP":0};
         const valid = total - (subs["1W"]+subs["SR"]+subs["DUP"]);
-        report += dev + ': ' + valid + '\\n';
+        report += dev + ': ' + valid + '\n';
       });
       return report;
     }
@@ -1090,14 +1081,18 @@ let filterStartTs = null, filterEndTs = null;
         });
       });
 
-      let report = '<b>Subtractions Summary</b>:\\n\\n';
+      let report = '<b>Subtractions Summary</b>:';
+      report += '\n';
+      report += '\n';
       Object.entries(subPerDevice).forEach(([dev, subs]) => {
         const total = (subs["1W"]||0)+(subs["SR"]||0)+(subs["DUP"]||0);
-        report += '<b>' + dev + '</b>:\\n'
-                + '  Short Utterance: ' + subs["1W"] + '\\n'
-                + '  System Replacement: ' + subs["SR"] + '\\n'
-                + '  Duplicates: ' + subs["DUP"] + '\\n'
-                + '  Total: ' + total + '\\n\\n';
+        report += '<b>' + dev + '</b>:';
+        report += '\n';
+        report += '  Short Utterance: ' + subs["1W"] + '\n';
+        report += '  System Replacement: ' + subs["SR"] + '\n';
+        report += '  Duplicates: ' + subs["DUP"] + '\n';
+        report += '  Total: ' + total + '\n';
+        report += '\n';
       });
 
       return report;
@@ -1110,12 +1105,11 @@ let filterStartTs = null, filterEndTs = null;
       // Add overall logic selector
       const logicSelector = document.createElement('div');
       logicSelector.style = 'margin-bottom:10px;';
-      logicSelector.innerHTML = `
-        <select id="filterLogic">
-          <option value="AND">Match ALL Filters (AND)</option>
-          <option value="OR">Match ANY Filter (OR)</option>
-        </select>
-      `;
+      logicSelector.innerHTML = 
+        '<select id="filterLogic">' +
+        '<option value="AND">Match ALL Filters (AND)</option>' +
+        '<option value="OR">Match ANY Filter (OR)</option>' +
+        '</select>';
       filtersContainer.insertBefore(logicSelector, filtersContainer.firstChild);
 
       // Modify filter row creation
@@ -1123,16 +1117,15 @@ let filterStartTs = null, filterEndTs = null;
         const fr = document.createElement('div');
         fr.className = 'filterRow';
         fr.style = 'display:flex;gap:4px;margin-bottom:5px;';
-        fr.innerHTML = `
-          <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
-          <select class="filterField">
-            <option value="any">Any</option>
-            <option value="time">Time</option>
-            <option value="type">Type</option>
-            <option value="transcript">Transcript</option>
-          </select>
-          <button class="removeFilterBtn">×</button>
-        `;
+        fr.innerHTML = 
+          '<input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">' +
+          '<select class="filterField">' +
+          '<option value="any">Any</option>' +
+          '<option value="time">Time</option>' +
+          '<option value="type">Type</option>' +
+          '<option value="transcript">Transcript</option>' +
+          '</select>' +
+          '<button class="removeFilterBtn">×</button>';
         return fr;
       }
 
@@ -1176,9 +1169,9 @@ let filterStartTs = null, filterEndTs = null;
       Object.entries(deviceSettings).forEach(([dev, settings])=>{
         let div = win.document.createElement("div");
         div.className = "deviceSettings";
-        div.innerHTML = `<strong>${dev}</strong><br>
-          <label><input type="checkbox" class="assignChk" data-dev="${dev}" ${settings.assigned ? "checked" : ""}> Assigned</label>
-          <label><input type="checkbox" class="textChk" data-dev="${dev}" ${settings.textBased ? "checked" : ""}> Text Based Input</label>`;
+        div.innerHTML = '<strong>' + dev + '</strong><br>' +
+          '<label><input type="checkbox" class="assignChk" data-dev="' + dev + '" ' + (settings.assigned ? "checked" : "") + '> Assigned</label>' +
+          '<label><input type="checkbox" class="textChk" data-dev="' + dev + '" ' + (settings.textBased ? "checked" : "") + '> Text Based Input</label>';
         deviceListDiv.appendChild(div);
       });
       [...win.document.querySelectorAll(".assignChk")].forEach(chk=>{
@@ -1193,7 +1186,6 @@ let filterStartTs = null, filterEndTs = null;
         chk.onchange = function(e){
           let d = e.target.getAttribute("data-dev");
           deviceSettings[d].textBased = e.target.checked;
-          // Clear SR and DUP overrides for this device so flags recalculate correctly
           records.forEach(r => {
             let devName = r.device?.deviceName || "Unknown";
             if (devName === d) {
@@ -1308,11 +1300,4 @@ let filterStartTs = null, filterEndTs = null;
     enhanceFiltersContainer();
     addConversationsButton();
   }
-})();`;
-
-  return {
-    target_file: "count2.js",
-    instructions: "I will fix template literal escaping and string formatting issues throughout the code",
-    code_edit: edit
-  };
-}
+})();
