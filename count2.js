@@ -829,9 +829,17 @@ let filterStartTs = null, filterEndTs = null;
 
       // Format header
       const startStr = new Date(filterStartTs)
-        .toLocaleString("en-US",{timeZone:"America/New_York"});
-      const endStr   = new Date(filterEndTs)
-        .toLocaleString("en-US",{timeZone:"America/New_York"});
+        .toLocaleDateString("en-US", {
+          timeZone: "America/New_York",
+          month: "2-digit",
+          day: "2-digit"
+        });
+      const endStr = new Date(filterEndTs)
+        .toLocaleDateString("en-US", {
+          timeZone: "America/New_York",
+          month: "2-digit",
+          day: "2-digit"
+        });
       let report = `<b>Week</b>: ${startStr} - ${endStr}\n`;
 
       // Assigned devices (merge Metis variants)
@@ -1055,28 +1063,34 @@ let filterStartTs = null, filterEndTs = null;
     }
 
     // Multi‐filter functionality
-    function applyFilters(){
+    function applyFilters() {
       const filters = [...win.document.querySelectorAll('#filtersContainer .filterRow')];
       const rows = [...win.document.querySelectorAll('#tableBody tr')].filter(r => !r.id);
+      const logic = win.document.getElementById('filterLogic').value;
       let visibleCount = 0;
+
       rows.forEach(row => {
-        let visible = true;
+        // Array to store results of each filter
+        const filterResults = [];
+
         filters.forEach(fr => {
           const field = fr.querySelector('.filterField').value;
+          let matches = true;
+
           if(field === 'time') {
-            // New time filter logic: use datetime-local inputs and compare full datetime
             const startInput = fr.querySelector('.filterDateTimeStart');
             const endInput = fr.querySelector('.filterDateTimeEnd');
             const rowTimeStr = row.cells[1].innerText.trim();
             const rowTime = new Date(rowTimeStr);
             const startTime = startInput.value ? new Date(startInput.value) : null;
             const endTime = endInput.value ? new Date(endInput.value) : null;
+            
             if (startTime && endTime) {
-              if (!(rowTime >= startTime && rowTime <= endTime)) visible = false;
+              matches = rowTime >= startTime && rowTime <= endTime;
             }
           } else {
             const input = fr.querySelector('.filterInput').value.toLowerCase();
-            if(input){
+            if(input) {
               let text = '';
               if(field === 'any') {
                 text = row.innerText.toLowerCase();
@@ -1085,16 +1099,25 @@ let filterStartTs = null, filterEndTs = null;
               } else if(field === 'transcript') {
                 text = row.cells[4].innerText.toLowerCase();
               }
-              if(field !== 'any' && field !== 'type' && field !== 'transcript') return;
-              if(!text.includes(input)) visible = false;
+              matches = text.includes(input);
             }
           }
+          filterResults.push(matches);
         });
+
+        // Apply AND/OR logic
+        let visible = logic === 'AND' 
+          ? filterResults.every(result => result)
+          : filterResults.some(result => result) || filterResults.length === 0;
+
         row.style.display = visible ? '' : 'none';
         const next = row.nextElementSibling;
-        if(next && next.id && next.id.startsWith('resp')) next.style.display = 'none';
+        if(next && next.id && next.id.startsWith('resp')) {
+          next.style.display = 'none';
+        }
         if (visible) visibleCount++;
       });
+
       // Update record count
       const recordCountElem = win.document.getElementById("recordCount");
       if (recordCountElem) {
@@ -1102,90 +1125,49 @@ let filterStartTs = null, filterEndTs = null;
       }
     }
 
-    function bindFilterEvents(fr){
-      let input = fr.querySelector('.filterInput');
+    function bindFilterEvents(fr) {
       let field = fr.querySelector('.filterField');
       const removeBtn = fr.querySelector('.removeFilterBtn');
 
-      // Helper to create time range inputs (datetime-local)
-      function setTimeInputs() {
-        // Remove previous inputs
-        let oldInput = fr.querySelector('.filterInput');
-        if (oldInput) oldInput.remove();
-        let oldStart = fr.querySelector('.filterTimeStart');
-        if (oldStart) oldStart.remove();
-        let oldEnd = fr.querySelector('.filterTimeEnd');
-        if (oldEnd) oldEnd.remove();
-        let oldDateStart = fr.querySelector('.filterDateTimeStart');
-        if (oldDateStart) oldDateStart.remove();
-        let oldDateEnd = fr.querySelector('.filterDateTimeEnd');
-        if (oldDateEnd) oldDateEnd.remove();
-        // Insert two datetime-local inputs
-        const start = win.document.createElement('input');
-        start.type = 'datetime-local';
-        start.className = 'filterDateTimeStart';
-        start.style = 'width:180px;padding:5px;';
-
-        const end = win.document.createElement('input');
-        end.type = 'datetime-local';
-        end.className = 'filterDateTimeEnd';
-        end.style = 'width:180px;padding:5px;';
-        // Insert before select
-        fr.insertBefore(start, field);
-        fr.insertBefore(end, field);
-        start.oninput = applyFilters;
-        end.oninput = applyFilters;
-      }
-
-      function setTextInput() {
-        // Remove previous inputs
-        let oldStart = fr.querySelector('.filterTimeStart');
-        if (oldStart) oldStart.remove();
-        let oldEnd = fr.querySelector('.filterTimeEnd');
-        if (oldEnd) oldEnd.remove();
-        let oldDateStart = fr.querySelector('.filterDateTimeStart');
-        if (oldDateStart) oldDateStart.remove();
-        let oldDateEnd = fr.querySelector('.filterDateTimeEnd');
-        if (oldDateEnd) oldDateEnd.remove();
-        let oldInput = fr.querySelector('.filterInput');
-        if (!oldInput) {
-          // Create new input and insert before select
-          oldInput = win.document.createElement('input');
-          oldInput.className = 'filterInput';
-          oldInput.placeholder = 'Search...';
-          oldInput.style = 'flex:1;padding:5px;';
-          fr.insertBefore(oldInput, field);
-        }
-        oldInput.oninput = applyFilters;
-      }
-
-      // Switch input fields on filter type change
       field.onchange = function() {
         if (field.value === 'time') {
-          setTimeInputs();
+          setTimeInputs(fr);
         } else {
-          setTextInput();
+          setTextInput(fr);
         }
         applyFilters();
       };
 
-      // Initial bind
+      removeBtn.onclick = () => {
+        fr.remove();
+        applyFilters();
+      };
+
+      // Initial setup based on field type
       if (field.value === 'time') {
-        setTimeInputs();
+        setTimeInputs(fr);
       } else {
-        setTextInput();
+        setTextInput(fr);
       }
-      removeBtn.onclick = () => { fr.remove(); applyFilters(); };
     }
 
-    // Initialize first filter row
-    [...win.document.querySelectorAll('#filtersContainer .filterRow')].forEach(bindFilterEvents);
+    // Helper functions remain the same
+    function setTimeInputs(fr) {
+      // ... existing setTimeInputs code ...
+    }
+
+    function setTextInput(fr) {
+      // ... existing setTextInput code ...
+    }
+
+    // Initialize
+    [...win.document.querySelectorAll('.filterRow')].forEach(bindFilterEvents);
 
     // Add new filter rows
     win.document.getElementById('addFilterBtn').onclick = () => {
-      const fr = win.document.createElement('div');
+      const fr = document.createElement('div');
       fr.className = 'filterRow';
-      fr.style = 'display:flex;gap:4px;';
+      fr.style = 'display:flex;gap:4px;margin-bottom:5px;';
       fr.innerHTML = `
         <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
         <select class="filterField">
@@ -1243,3 +1225,143 @@ let filterStartTs = null, filterEndTs = null;
 
       return report;
     }
+
+    function enhanceFiltersContainer() {
+      // Add logic selector to each filter group
+      const filtersContainer = win.document.getElementById('filtersContainer');
+      
+      // Add overall logic selector
+      const logicSelector = document.createElement('div');
+      logicSelector.style = 'margin-bottom:10px;';
+      logicSelector.innerHTML = `
+        <select id="filterLogic">
+          <option value="AND">Match ALL Filters (AND)</option>
+          <option value="OR">Match ANY Filter (OR)</option>
+        </select>
+      `;
+      filtersContainer.insertBefore(logicSelector, filtersContainer.firstChild);
+
+      // Modify filter row creation
+      function createFilterRow() {
+        const fr = document.createElement('div');
+        fr.className = 'filterRow';
+        fr.style = 'display:flex;gap:4px;margin-bottom:5px;';
+        fr.innerHTML = `
+          <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
+          <select class="filterField">
+            <option value="any">Any</option>
+            <option value="time">Time</option>
+            <option value="type">Type</option>
+            <option value="transcript">Transcript</option>
+          </select>
+          <button class="removeFilterBtn">×</button>
+        `;
+        return fr;
+      }
+
+      // Modify the applyFilters function to handle AND/OR logic
+      function applyFilters() {
+        const filters = [...win.document.querySelectorAll('#filtersContainer .filterRow')];
+        const rows = [...win.document.querySelectorAll('#tableBody tr')].filter(r => !r.id);
+        const logic = win.document.getElementById('filterLogic').value;
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+          // Array to store results of each filter
+          const filterResults = [];
+
+          filters.forEach(fr => {
+            const field = fr.querySelector('.filterField').value;
+            let matches = true;
+
+            if(field === 'time') {
+              const startInput = fr.querySelector('.filterDateTimeStart');
+              const endInput = fr.querySelector('.filterDateTimeEnd');
+              const rowTimeStr = row.cells[1].innerText.trim();
+              const rowTime = new Date(rowTimeStr);
+              const startTime = startInput.value ? new Date(startInput.value) : null;
+              const endTime = endInput.value ? new Date(endInput.value) : null;
+              
+              if (startTime && endTime) {
+                matches = rowTime >= startTime && rowTime <= endTime;
+              }
+            } else {
+              const input = fr.querySelector('.filterInput').value.toLowerCase();
+              if(input) {
+                let text = '';
+                if(field === 'any') {
+                  text = row.innerText.toLowerCase();
+                } else if(field === 'type') {
+                  text = row.cells[5].innerText.toLowerCase();
+                } else if(field === 'transcript') {
+                  text = row.cells[4].innerText.toLowerCase();
+                }
+                matches = text.includes(input);
+              }
+            }
+            filterResults.push(matches);
+          });
+
+          // Apply AND/OR logic
+          let visible = logic === 'AND' 
+            ? filterResults.every(result => result)
+            : filterResults.some(result => result) || filterResults.length === 0;
+
+          row.style.display = visible ? '' : 'none';
+          const next = row.nextElementSibling;
+          if(next && next.id && next.id.startsWith('resp')) {
+            next.style.display = 'none';
+          }
+          if (visible) visibleCount++;
+        });
+
+        // Update record count
+        const recordCountElem = win.document.getElementById("recordCount");
+        if (recordCountElem) {
+          recordCountElem.textContent = `Showing ${visibleCount} records`;
+        }
+      }
+
+      // Rebind events
+      win.document.getElementById('filterLogic').onchange = applyFilters;
+      
+      // Update existing filter bindings
+      function bindFilterEvents(fr) {
+        let field = fr.querySelector('.filterField');
+        const removeBtn = fr.querySelector('.removeFilterBtn');
+
+        field.onchange = function() {
+          if (field.value === 'time') {
+            setTimeInputs(fr);
+          } else {
+            setTextInput(fr);
+          }
+          applyFilters();
+        };
+
+        removeBtn.onclick = () => {
+          fr.remove();
+          applyFilters();
+        };
+
+        // Initial setup based on field type
+        if (field.value === 'time') {
+          setTimeInputs(fr);
+        } else {
+          setTextInput(fr);
+        }
+      }
+
+      // Helper functions remain the same
+      function setTimeInputs(fr) {
+        // ... existing setTimeInputs code ...
+      }
+
+      function setTextInput(fr) {
+        // ... existing setTextInput code ...
+      }
+
+      // Initialize
+      [...win.document.querySelectorAll('.filterRow')].forEach(bindFilterEvents);
+    }
+})();
