@@ -827,7 +827,7 @@ let filterStartTs = null, filterEndTs = null;
         });
       });
 
-      // Format header
+      // Format header with simplified date format
       const startStr = new Date(filterStartTs)
         .toLocaleDateString("en-US", {
           timeZone: "America/New_York",
@@ -910,6 +910,113 @@ let filterStartTs = null, filterEndTs = null;
       });
 
       return report;
+    }
+
+    function generateSubtractionsSummaryReport(){
+      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
+      const visibleRecords = records.filter(r=>{
+        const dev = r.device?.deviceName || "Unknown";
+        if(deviceFilterVal !== ""){
+          return dev === deviceFilterVal;
+        } else {
+          return deviceSettings[dev] && deviceSettings[dev].assigned;
+        }
+      });
+      if(visibleRecords.length === 0) return "No records available for subtractions report.";
+
+      const metisPattern = /\bMetis\b/;
+      const deviceCount = {}, subPerDevice = {};
+
+      visibleRecords.forEach(r => {
+        const dev = r.device?.deviceName || "Unknown";
+        const bucket = metisPattern.test(dev) ? "Metis (All)" : dev;
+        deviceCount[bucket] = (deviceCount[bucket]||0) + 1;
+        subPerDevice[bucket] = subPerDevice[bucket] || {"1W":0,"SR":0,"DUP":0};
+        r._activeFlags.forEach(flag => {
+          if(flag === "1W") subPerDevice[bucket]["1W"]++;
+          if(flag === "SR") subPerDevice[bucket]["SR"]++;
+          if(flag === "DUP") subPerDevice[bucket]["DUP"]++;
+        });
+      });
+
+      let report = `<b>Subtractions Summary</b>:\n\n`;
+      Object.entries(subPerDevice).forEach(([dev, subs]) => {
+        const total = (subs["1W"]||0)+(subs["SR"]||0)+(subs["DUP"]||0);
+        report += `<b>${dev}</b>:\n`
+                + `  Short Utterance: ${subs["1W"]}\n`
+                + `  System Replacement: ${subs["SR"]}\n`
+                + `  Duplicates: ${subs["DUP"]}\n`
+                + `  Total: ${total}\n\n`;
+      });
+
+      return report;
+    }
+
+    function enhanceFiltersContainer() {
+      // Add logic selector to each filter group
+      const filtersContainer = win.document.getElementById('filtersContainer');
+      
+      // Add overall logic selector
+      const logicSelector = document.createElement('div');
+      logicSelector.style = 'margin-bottom:10px;';
+      logicSelector.innerHTML = `
+        <select id="filterLogic">
+          <option value="AND">Match ALL Filters (AND)</option>
+          <option value="OR">Match ANY Filter (OR)</option>
+        </select>
+      `;
+      filtersContainer.insertBefore(logicSelector, filtersContainer.firstChild);
+
+      // Modify filter row creation
+      function createFilterRow() {
+        const fr = document.createElement('div');
+        fr.className = 'filterRow';
+        fr.style = 'display:flex;gap:4px;margin-bottom:5px;';
+        fr.innerHTML = `
+          <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
+          <select class="filterField">
+            <option value="any">Any</option>
+            <option value="time">Time</option>
+            <option value="type">Type</option>
+            <option value="transcript">Transcript</option>
+          </select>
+          <button class="removeFilterBtn">×</button>
+        `;
+        return fr;
+      }
+
+      // Rebind events
+      win.document.getElementById('filterLogic').onchange = applyFilters;
+      
+      // Update existing filter bindings
+      function bindFilterEvents(fr) {
+        let field = fr.querySelector('.filterField');
+        const removeBtn = fr.querySelector('.removeFilterBtn');
+
+        field.onchange = function() {
+          if (field.value === 'time') {
+            setTimeInputs(fr);
+          } else {
+            setTextInput(fr);
+          }
+          applyFilters();
+        };
+
+        removeBtn.onclick = () => {
+          fr.remove();
+          applyFilters();
+        };
+
+        // Initial setup based on field type
+        if (field.value === 'time') {
+          setTimeInputs(fr);
+        } else {
+          setTextInput(fr);
+        }
+      }
+
+      // Initialize
+      [...win.document.querySelectorAll('.filterRow')].forEach(bindFilterEvents);
     }
 
     function renderDeviceSettings(){
@@ -1048,320 +1155,6 @@ let filterStartTs = null, filterEndTs = null;
 
     renderData();
     renderDeviceSettings();
-
-    // Utility: Convert "1:30 PM" or "09:15 AM" to minutes since midnight
-    function timeStringToMinutes(timeStr) {
-      // Accepts "h:mm AM/PM" or "hh:mm AM/PM"
-      const m = timeStr.match(/^\s*(\d{1,2}):(\d{2})\s*([AP]M)\s*$/i);
-      if (!m) return null;
-      let hour = parseInt(m[1], 10);
-      const min = parseInt(m[2], 10);
-      const ampm = m[3].toUpperCase();
-      if (ampm === "PM" && hour !== 12) hour += 12;
-      if (ampm === "AM" && hour === 12) hour = 0;
-      return hour * 60 + min;
-    }
-
-    // Multi‐filter functionality
-    function applyFilters() {
-      const filters = [...win.document.querySelectorAll('#filtersContainer .filterRow')];
-      const rows = [...win.document.querySelectorAll('#tableBody tr')].filter(r => !r.id);
-      const logic = win.document.getElementById('filterLogic').value;
-      let visibleCount = 0;
-
-      rows.forEach(row => {
-        // Array to store results of each filter
-        const filterResults = [];
-
-        filters.forEach(fr => {
-          const field = fr.querySelector('.filterField').value;
-          let matches = true;
-
-          if(field === 'time') {
-            const startInput = fr.querySelector('.filterDateTimeStart');
-            const endInput = fr.querySelector('.filterDateTimeEnd');
-            const rowTimeStr = row.cells[1].innerText.trim();
-            const rowTime = new Date(rowTimeStr);
-            const startTime = startInput.value ? new Date(startInput.value) : null;
-            const endTime = endInput.value ? new Date(endInput.value) : null;
-            
-            if (startTime && endTime) {
-              matches = rowTime >= startTime && rowTime <= endTime;
-            }
-          } else {
-            const input = fr.querySelector('.filterInput').value.toLowerCase();
-            if(input) {
-              let text = '';
-              if(field === 'any') {
-                text = row.innerText.toLowerCase();
-              } else if(field === 'type') {
-                text = row.cells[5].innerText.toLowerCase();
-              } else if(field === 'transcript') {
-                text = row.cells[4].innerText.toLowerCase();
-              }
-              matches = text.includes(input);
-            }
-          }
-          filterResults.push(matches);
-        });
-
-        // Apply AND/OR logic
-        let visible = logic === 'AND' 
-          ? filterResults.every(result => result)
-          : filterResults.some(result => result) || filterResults.length === 0;
-
-        row.style.display = visible ? '' : 'none';
-        const next = row.nextElementSibling;
-        if(next && next.id && next.id.startsWith('resp')) {
-          next.style.display = 'none';
-        }
-        if (visible) visibleCount++;
-      });
-
-      // Update record count
-      const recordCountElem = win.document.getElementById("recordCount");
-      if (recordCountElem) {
-        recordCountElem.textContent = `Showing ${visibleCount} records`;
-      }
-    }
-
-    function bindFilterEvents(fr) {
-      let field = fr.querySelector('.filterField');
-      const removeBtn = fr.querySelector('.removeFilterBtn');
-
-      field.onchange = function() {
-        if (field.value === 'time') {
-          setTimeInputs(fr);
-        } else {
-          setTextInput(fr);
-        }
-        applyFilters();
-      };
-
-      removeBtn.onclick = () => {
-        fr.remove();
-        applyFilters();
-      };
-
-      // Initial setup based on field type
-      if (field.value === 'time') {
-        setTimeInputs(fr);
-      } else {
-        setTextInput(fr);
-      }
-    }
-
-    // Helper functions remain the same
-    function setTimeInputs(fr) {
-      // ... existing setTimeInputs code ...
-    }
-
-    function setTextInput(fr) {
-      // ... existing setTextInput code ...
-    }
-
-    // Initialize
-    [...win.document.querySelectorAll('.filterRow')].forEach(bindFilterEvents);
-
-    // Add new filter rows
-    win.document.getElementById('addFilterBtn').onclick = () => {
-      const fr = document.createElement('div');
-      fr.className = 'filterRow';
-      fr.style = 'display:flex;gap:4px;margin-bottom:5px;';
-      fr.innerHTML = `
-        <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
-        <select class="filterField">
-          <option value="any">Any</option>
-          <option value="time">Time</option>
-          <option value="type">Type</option>
-          <option value="transcript">Transcript</option>
-        </select>
-        <button class="removeFilterBtn">×</button>`;
-      win.document.getElementById('filtersContainer').insertBefore(
-        fr, win.document.getElementById('addFilterBtn')
-      );
-      bindFilterEvents(fr);
-    };
+    enhanceFiltersContainer();
   }
-})();
-
-    // Generate a summary subtractions report per device/category
-    function generateSubtractionsSummaryReport(){
-      const deviceFilterVal = win.document.getElementById('deviceFilter').value;
-      const visibleRecords = records.filter(r=>{
-        const dev = r.device?.deviceName || "Unknown";
-        if(deviceFilterVal !== ""){
-          return dev === deviceFilterVal;
-        } else {
-          return deviceSettings[dev] && deviceSettings[dev].assigned;
-        }
-      });
-      if(visibleRecords.length === 0) return "No records available for subtractions report.";
-
-      const metisPattern = /\bMetis\b/;
-      const deviceCount = {}, subPerDevice = {};
-
-      visibleRecords.forEach(r => {
-        const dev = r.device?.deviceName || "Unknown";
-        const bucket = metisPattern.test(dev) ? "Metis (All)" : dev;
-        deviceCount[bucket] = (deviceCount[bucket]||0) + 1;
-        subPerDevice[bucket] = subPerDevice[bucket] || {"1W":0,"SR":0,"DUP":0};
-        r._activeFlags.forEach(flag => {
-          if(flag === "1W") subPerDevice[bucket]["1W"]++;
-          if(flag === "SR") subPerDevice[bucket]["SR"]++;
-          if(flag === "DUP") subPerDevice[bucket]["DUP"]++;
-        });
-      });
-
-      let report = `<b>Subtractions Summary</b>:\n\n`;
-      Object.entries(subPerDevice).forEach(([dev, subs]) => {
-        const total = (subs["1W"]||0)+(subs["SR"]||0)+(subs["DUP"]||0);
-        report += `<b>${dev}</b>:\n`
-                + `  Short Utterance: ${subs["1W"]}\n`
-                + `  System Replacement: ${subs["SR"]}\n`
-                + `  Duplicates: ${subs["DUP"]}\n`
-                + `  Total: ${total}\n\n`;
-      });
-
-      return report;
-    }
-
-    function enhanceFiltersContainer() {
-      // Add logic selector to each filter group
-      const filtersContainer = win.document.getElementById('filtersContainer');
-      
-      // Add overall logic selector
-      const logicSelector = document.createElement('div');
-      logicSelector.style = 'margin-bottom:10px;';
-      logicSelector.innerHTML = `
-        <select id="filterLogic">
-          <option value="AND">Match ALL Filters (AND)</option>
-          <option value="OR">Match ANY Filter (OR)</option>
-        </select>
-      `;
-      filtersContainer.insertBefore(logicSelector, filtersContainer.firstChild);
-
-      // Modify filter row creation
-      function createFilterRow() {
-        const fr = document.createElement('div');
-        fr.className = 'filterRow';
-        fr.style = 'display:flex;gap:4px;margin-bottom:5px;';
-        fr.innerHTML = `
-          <input class="filterInput" placeholder="Search..." style="flex:1;padding:5px;">
-          <select class="filterField">
-            <option value="any">Any</option>
-            <option value="time">Time</option>
-            <option value="type">Type</option>
-            <option value="transcript">Transcript</option>
-          </select>
-          <button class="removeFilterBtn">×</button>
-        `;
-        return fr;
-      }
-
-      // Modify the applyFilters function to handle AND/OR logic
-      function applyFilters() {
-        const filters = [...win.document.querySelectorAll('#filtersContainer .filterRow')];
-        const rows = [...win.document.querySelectorAll('#tableBody tr')].filter(r => !r.id);
-        const logic = win.document.getElementById('filterLogic').value;
-        let visibleCount = 0;
-
-        rows.forEach(row => {
-          // Array to store results of each filter
-          const filterResults = [];
-
-          filters.forEach(fr => {
-            const field = fr.querySelector('.filterField').value;
-            let matches = true;
-
-            if(field === 'time') {
-              const startInput = fr.querySelector('.filterDateTimeStart');
-              const endInput = fr.querySelector('.filterDateTimeEnd');
-              const rowTimeStr = row.cells[1].innerText.trim();
-              const rowTime = new Date(rowTimeStr);
-              const startTime = startInput.value ? new Date(startInput.value) : null;
-              const endTime = endInput.value ? new Date(endInput.value) : null;
-              
-              if (startTime && endTime) {
-                matches = rowTime >= startTime && rowTime <= endTime;
-              }
-            } else {
-              const input = fr.querySelector('.filterInput').value.toLowerCase();
-              if(input) {
-                let text = '';
-                if(field === 'any') {
-                  text = row.innerText.toLowerCase();
-                } else if(field === 'type') {
-                  text = row.cells[5].innerText.toLowerCase();
-                } else if(field === 'transcript') {
-                  text = row.cells[4].innerText.toLowerCase();
-                }
-                matches = text.includes(input);
-              }
-            }
-            filterResults.push(matches);
-          });
-
-          // Apply AND/OR logic
-          let visible = logic === 'AND' 
-            ? filterResults.every(result => result)
-            : filterResults.some(result => result) || filterResults.length === 0;
-
-          row.style.display = visible ? '' : 'none';
-          const next = row.nextElementSibling;
-          if(next && next.id && next.id.startsWith('resp')) {
-            next.style.display = 'none';
-          }
-          if (visible) visibleCount++;
-        });
-
-        // Update record count
-        const recordCountElem = win.document.getElementById("recordCount");
-        if (recordCountElem) {
-          recordCountElem.textContent = `Showing ${visibleCount} records`;
-        }
-      }
-
-      // Rebind events
-      win.document.getElementById('filterLogic').onchange = applyFilters;
-      
-      // Update existing filter bindings
-      function bindFilterEvents(fr) {
-        let field = fr.querySelector('.filterField');
-        const removeBtn = fr.querySelector('.removeFilterBtn');
-
-        field.onchange = function() {
-          if (field.value === 'time') {
-            setTimeInputs(fr);
-          } else {
-            setTextInput(fr);
-          }
-          applyFilters();
-        };
-
-        removeBtn.onclick = () => {
-          fr.remove();
-          applyFilters();
-        };
-
-        // Initial setup based on field type
-        if (field.value === 'time') {
-          setTimeInputs(fr);
-        } else {
-          setTextInput(fr);
-        }
-      }
-
-      // Helper functions remain the same
-      function setTimeInputs(fr) {
-        // ... existing setTimeInputs code ...
-      }
-
-      function setTextInput(fr) {
-        // ... existing setTextInput code ...
-      }
-
-      // Initialize
-      [...win.document.querySelectorAll('.filterRow')].forEach(bindFilterEvents);
-    }
 })();
